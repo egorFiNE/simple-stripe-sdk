@@ -36,8 +36,8 @@
     "check": "bun run typecheck && bun run typecheck:consumer && bun run test && bun run build"
   },
   "devDependencies": {
-    "@types/node": "^24.6.1",
-    "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "@types/node": "^25.5.2",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.3"
   }
 }
