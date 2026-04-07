@@ -1,5 +1,5 @@
 import { isSerializableRecord, toStripeSearchParams } from "./serialization.js";
-import type { StripeFailure, StripeRequestOptions, StripeResult } from "./types.js";
+import type { SimpleStripeFailure, SimpleStripeRequestOptions, SimpleStripeResult } from "./types.js";
 import { computeRetryDelayMs, isAbortError, shouldRetryError, shouldRetryResponse, sleepMs, isStripeErrorPayload, jsonParseOrThrow } from "./utils.js";
 import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, RETRY_BASE_DELAY_MS, DEFAULT_TIMEOUT_MS, USER_AGENT } from "./constants.js";
 
@@ -13,7 +13,7 @@ interface PreparedRequest {
 type ExecutedAttemptOutcome<T> = {
   shouldReturn: boolean;
   delayMs: number;
-  result: StripeResult<T>;
+  result: SimpleStripeResult<T>;
 };
 
 export class StripeClient {
@@ -32,23 +32,23 @@ export class StripeClient {
     }
   }
 
-  public async get<T>(path: string, options: StripeRequestOptions = {}): Promise<StripeResult<T>> {
+  public async get<T>(path: string, options: SimpleStripeRequestOptions = {}): Promise<SimpleStripeResult<T>> {
     return this.request<T>("GET", path, options);
   }
 
-  public async post<T>(path: string, options: StripeRequestOptions = {}): Promise<StripeResult<T>> {
+  public async post<T>(path: string, options: SimpleStripeRequestOptions = {}): Promise<SimpleStripeResult<T>> {
     return this.request<T>("POST", path, options);
   }
 
-  public async patch<T>(path: string, options: StripeRequestOptions = {}): Promise<StripeResult<T>> {
+  public async patch<T>(path: string, options: SimpleStripeRequestOptions = {}): Promise<SimpleStripeResult<T>> {
     return this.request<T>("PATCH", path, options);
   }
 
-  public async delete<T>(path: string, options: StripeRequestOptions = {}): Promise<StripeResult<T>> {
+  public async delete<T>(path: string, options: SimpleStripeRequestOptions = {}): Promise<SimpleStripeResult<T>> {
     return this.request<T>("DELETE", path, options);
   }
 
-  public async request<T>(method: string, path: string, options: StripeRequestOptions = {}): Promise<StripeResult<T>> {
+  public async request<T>(method: string, path: string, options: SimpleStripeRequestOptions = {}): Promise<SimpleStripeResult<T>> {
     const preparedRequest = this.prepareRequest(method, path, options);
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
@@ -76,7 +76,7 @@ export class StripeClient {
     };
   }
 
-  private prepareRequest(method: string, path: string, options: StripeRequestOptions): PreparedRequest {
+  private prepareRequest(method: string, path: string, options: SimpleStripeRequestOptions): PreparedRequest {
     const url = buildUrl(this.baseUrl, path, options.params);
     const headers = buildHeaders(this.headers, options.headers);
     const body = buildRequestBody(method, headers, options);
@@ -127,7 +127,7 @@ export class StripeClient {
       };
 
     } catch (error) {
-      let result: StripeFailure;
+      let result: SimpleStripeFailure;
 
       if (isAbortError(error)) {
         result = {
@@ -186,7 +186,7 @@ function buildUrl(baseUrl: string, path: string, params?: Record<string, unknown
   return url;
 }
 
-function buildRequestBody(method: string, headers: Headers, options: StripeRequestOptions): any {
+function buildRequestBody(method: string, headers: Headers, options: SimpleStripeRequestOptions): any {
   // GET requests do not carry a body in fetch, so we skip body work entirely.
   if (method === "GET" || !options.body) {
     return null;
@@ -215,7 +215,7 @@ function buildRequestBody(method: string, headers: Headers, options: StripeReque
   return null;
 }
 
-function buildSuccessResult<T>(response: Response, json: any): StripeResult<T> {
+function buildSuccessResult<T>(response: Response, json: any): SimpleStripeResult<T> {
   if (json === null) {
     return {
       ok: false,
@@ -237,7 +237,7 @@ function buildSuccessResult<T>(response: Response, json: any): StripeResult<T> {
   };
 }
 
-function buildFailureFromResponse(response: Response, json: any): StripeFailure {
+function buildFailureFromResponse(response: Response, json: any): SimpleStripeFailure {
   if (isStripeErrorPayload(json)) {
     // https://docs.stripe.com/api/errors#errors-decline_code
     return {

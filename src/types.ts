@@ -1,22 +1,13 @@
-export interface StripeSuccess<T> {
-  ok: true;
-  data: T;
-  meta: {
-    status: number;
-    headers: Headers;
-  };
-}
-
-export interface StripeTimeoutError {
+export interface SimpleStripeTimeoutError {
   kind: "timeout";
 }
 
-export interface StripeFetchError {
+export interface SimpleStripeFetchError {
   kind: "fetch";
   message: string;
 }
 
-export interface StripeApiError {
+export interface SimpleStripeApiError {
   kind: "stripe";
   message: string;
   code?: string;
@@ -25,54 +16,63 @@ export interface StripeApiError {
   raw: any;
 }
 
-export interface StripeHttpError {
+export interface SimpleStripeHttpError {
   kind: "http";
   message: string;
   status: number;
   body?: any;
 }
 
-export interface StripeDecodeError {
+export interface SimpleStripeDecodeError {
   kind: "decode";
   message: string;
   status: number;
 }
 
-export type StripeError =
-  | StripeTimeoutError
-  | StripeFetchError
-  | StripeApiError
-  | StripeHttpError
-  | StripeDecodeError;
+export type SimpleStripeError =
+  | SimpleStripeTimeoutError
+  | SimpleStripeFetchError
+  | SimpleStripeApiError
+  | SimpleStripeHttpError
+  | SimpleStripeDecodeError;
 
-export interface StripeFailure {
+export interface SimpleStripeFailure {
   ok: false;
-  error: StripeError;
+  error: SimpleStripeError;
 }
 
-export type StripeResult<T> = StripeSuccess<T> | StripeFailure;
+export interface SimpleStripeSuccess<T> {
+  ok: true;
+  data: T;
+  meta: {
+    status: number;
+    headers: Headers;
+  };
+}
 
-export interface StripeRequestBaseOptions {
+export type SimpleStripeResult<T> = SimpleStripeSuccess<T> | SimpleStripeFailure;
+
+export interface SimpleStripeRequestBaseOptions {
   params?: Record<string, any>;
   headers?: Record<string, string>;
 }
 
-export interface StripeFormRequestOptions extends StripeRequestBaseOptions {
+export interface SimpleStripeFormRequestOptions extends SimpleStripeRequestBaseOptions {
   bodyEncoding?: "form";
   body?: Record<string, any>; // FIXME lessen detection on body
 }
 
-export interface StripeJsonRequestOptions extends StripeRequestBaseOptions {
+export interface SimpleStripeJsonRequestOptions extends SimpleStripeRequestBaseOptions {
   bodyEncoding: "json";
   body?: unknown;
 }
 
-export interface StripeRawRequestOptions extends StripeRequestBaseOptions {
+export interface SimpleStripeRawRequestOptions extends SimpleStripeRequestBaseOptions {
   bodyEncoding: "raw";
   body?: any;
 }
 
-export type StripeRequestOptions =
-  | StripeFormRequestOptions
-  | StripeJsonRequestOptions
-  | StripeRawRequestOptions;
+export type SimpleStripeRequestOptions =
+  | SimpleStripeFormRequestOptions
+  | SimpleStripeJsonRequestOptions
+  | SimpleStripeRawRequestOptions;

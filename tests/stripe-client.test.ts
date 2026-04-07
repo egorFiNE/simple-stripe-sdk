@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { StripeClient, isErr, isOk } from "../src/index.js";
+import { StripeClient } from "../src/index.js";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -49,9 +48,9 @@ describe("StripeClient", () => {
       },
     });
 
-    expect(isOk(result)).toBe(true);
+    expect(result.ok).toBe(true);
 
-    if (isOk(result)) {
+    if (result.ok) {
       expect(result.data.object).toBe("list");
     }
   });
@@ -111,7 +110,7 @@ describe("StripeClient", () => {
       },
     });
 
-    expect(isOk(result)).toBe(true);
+    expect(result.ok).toBe(true);
   });
 
   it("maps Stripe API errors into the error branch", async () => {
@@ -136,9 +135,9 @@ describe("StripeClient", () => {
       body: {},
     });
 
-    expect(isErr(result)).toBe(true);
+    expect(result.ok).toBe(false);
 
-    if (isErr(result)) {
+    if (!result.ok) {
       expect(result.error.kind).toBe("stripe");
 
       if (result.error.kind === "stripe") {
@@ -268,7 +267,7 @@ describe("StripeClient", () => {
     const result = await promise;
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(isOk(result)).toBe(true);
+    expect(result.ok).toBe(true);
   });
 
   it("does not retry POST without an idempotency key", async () => {
@@ -298,7 +297,7 @@ describe("StripeClient", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(isErr(result)).toBe(true);
+    expect(result.ok).toBe(false);
   });
 
   it.skip("retries POST when an idempotency key is present", async () => {
@@ -388,6 +387,6 @@ describe("StripeClient", () => {
       },
     });
 
-    expect(isOk(result)).toBe(true);
+    expect(result.ok).toBe(true);
   });
 });

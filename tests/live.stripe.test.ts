@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { StripeClient, isOk } from "../src/index.js";
+import { StripeClient } from "../src/index.js";
 
 const stripeKey = process.env.STRIPE_TEST_API_KEY;
 const stripeVersion = process.env.STRIPE_TEST_API_VERSION;
@@ -21,9 +21,9 @@ describe.runIf(Boolean(stripeKey && stripeVersion))("live Stripe smoke tests", (
       },
     });
 
-    expect(isOk(result)).toBe(true);
+    expect(result.ok).toBe(true);
 
-    if (isOk(result)) {
+    if (result.ok) {
       expect(result.data.object).toBe("list");
       expect(Array.isArray(result.data.data)).toBe(true);
       expect(result.meta.status).toBe(200);

@@ -1,4 +1,4 @@
-import type { StripeError } from "./types.js";
+import type { SimpleStripeError } from "./types.js";
 import { RETRY_BASE_DELAY_MS } from "./constants.js";
 
 export function shouldRetryResponse(response: Response, method?: string, headers?: HeadersInit): boolean {
@@ -9,7 +9,7 @@ export function shouldRetryResponse(response: Response, method?: string, headers
   return response.status === 409 || response.status === 429 || response.status >= 500;
 }
 
-export function shouldRetryError(error: StripeError, method?: string, headers?: HeadersInit): boolean {
+export function shouldRetryError(error: SimpleStripeError, method?: string, headers?: HeadersInit): boolean {
   if (!isMethodRetryable(method, headers)) {
     return false;
   }
