@@ -1,4 +1,4 @@
-export { StripeClient } from "./stripe-client.js";
+export { SimpleStripeClient } from "./simple-stripe-client.js";
 
 export type {
   SimpleStripeApiError,

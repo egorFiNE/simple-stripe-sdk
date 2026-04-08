@@ -1,4 +1,4 @@
-import { type SimpleStripeResult, StripeClient } from "../../src/index.js";
+import { type SimpleStripeResult, SimpleStripeClient } from "../../src/index.js";
 
 type CustomerListResponse = {
   object: "list";
@@ -8,7 +8,7 @@ type CustomerListResponse = {
   }>;
 };
 
-const client = new StripeClient("sk_test_123");
+const client = new SimpleStripeClient("sk_test_123");
 
 async function example(): Promise<void> {
   const result: SimpleStripeResult<CustomerListResponse> = await client.get<CustomerListResponse>(

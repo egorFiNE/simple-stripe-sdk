@@ -7,11 +7,7 @@ function isScalar(value: unknown): value is string | number | boolean | null {
   return value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean";
 }
 
-function appendPairs(
-  pairs: KeyValuePair[],
-  key: string,
-  value: unknown,
-): void {
+function appendPairs(pairs: KeyValuePair[], key: string, value: unknown): void {
   // `undefined` is treated as "not provided" so callers can build request objects
   // without manually deleting optional fields first.
   if (value === undefined) {

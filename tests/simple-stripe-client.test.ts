@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { StripeClient } from "../src/index.js";
+import { SimpleStripeClient } from "../src/index.js";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -13,7 +13,7 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   });
 }
 
-describe("StripeClient", () => {
+describe("SimpletripeClient", () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
@@ -41,7 +41,7 @@ describe("StripeClient", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const client = new StripeClient("sk_test_123", "2025-09-30.clover");
+    const client = new SimpleStripeClient("sk_test_123", "2025-09-30.clover");
     const result = await client.get<{ object: string; data: unknown[] }>("/v1/customers", {
       params: {
         limit: 1,
@@ -70,7 +70,7 @@ describe("StripeClient", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const client = new StripeClient("sk_test_123");
+    const client = new SimpleStripeClient("sk_test_123");
 
     const result = await client.post<{ id: string }>("/v1/customers", {
       body: {
@@ -101,7 +101,7 @@ describe("StripeClient", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const client = new StripeClient("sk_test_123");
+    const client = new SimpleStripeClient("sk_test_123");
 
     const result = await client.post<{ echoed: boolean }>("/v1/test", {
       bodyEncoding: "json",
@@ -129,7 +129,7 @@ describe("StripeClient", () => {
       );
     }) as typeof fetch;
 
-    const client = new StripeClient("sk_test_123");
+    const client = new SimpleStripeClient("sk_test_123");
 
     const result = await client.post<{ never: true }>("/v1/customers", {
       body: {},
@@ -156,7 +156,7 @@ describe("StripeClient", () => {
       });
     }) as typeof fetch;
 
-    const client = new StripeClient("sk_test_123");
+    const client = new SimpleStripeClient("sk_test_123");
 
     const result = await client.get<{ ok: true }>("/v1/customers");
 
@@ -203,7 +203,7 @@ describe("StripeClient", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const client = new StripeClient("sk_test_123");
+    const client = new SimpleStripeClient("sk_test_123");
     client.maxRetries = 2;
 
     const promise = client.get<{ id: string }>("/v1/customers");
@@ -252,7 +252,7 @@ describe("StripeClient", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const client = new StripeClient("sk_test_123");
+    const client = new SimpleStripeClient("sk_test_123");
     client.maxRetries = 1;
 
     const promise = client.get<{ ok: boolean }>("/v1/customers");
@@ -287,7 +287,7 @@ describe("StripeClient", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const client = new StripeClient("sk_test_123");
+    const client = new SimpleStripeClient("sk_test_123");
     client.maxRetries = 2;
 
     const result = await client.post<{ id: string }>("/v1/customers", {
@@ -312,7 +312,7 @@ describe("StripeClient", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const client = new StripeClient("sk_test_123");
+    const client = new SimpleStripeClient("sk_test_123");
     client.maxRetries = 1;
 
     const promise = client.post<{ id: string }>("/v1/customers", {
@@ -348,7 +348,7 @@ describe("StripeClient", () => {
         }),
     ) as typeof fetch;
 
-    const client = new StripeClient("sk_test_123", "2025-09-30.clover");
+    const client = new SimpleStripeClient("sk_test_123", "2025-09-30.clover");
     client.timeoutMs = 25;
     client.maxRetries = 0;
 
@@ -379,7 +379,7 @@ describe("StripeClient", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const client = new StripeClient("sk_test_123", "2025-09-30.clover");
+    const client = new SimpleStripeClient("sk_test_123", "2025-09-30.clover");
 
     const result = await client.get<{ ok: boolean }>("/v1/customers", {
       headers: {

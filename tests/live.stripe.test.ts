@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { StripeClient } from "../src/index.js";
+import { SimpleStripeClient } from "../src/index.js";
 
-const stripeKey = process.env.STRIPE_TEST_API_KEY;
-const stripeVersion = process.env.STRIPE_TEST_API_VERSION;
+// @ts-ignore
+const stripeKey = process.env.STRIPE_TEST_API_KEY as string;
+// @ts-ignore
+const stripeVersion = process.env.STRIPE_TEST_API_VERSION as string;
 
 describe.runIf(Boolean(stripeKey && stripeVersion))("live Stripe smoke tests", () => {
   it("lists a small page of customers against Stripe", async () => {
-    const client = new StripeClient(stripeKey!, stripeVersion!);
+    const client = new SimpleStripeClient(stripeKey, stripeVersion);
 
     const result = await client.get<{
       object: "list";

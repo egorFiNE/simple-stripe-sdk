@@ -2,6 +2,17 @@ import { toStripeSearchParams } from "./serialization.js";
 import type { SimpleStripeFailure, SimpleStripeRequestOptions, SimpleStripeResult } from "./types.js";
 import { computeRetryDelayMs, isAbortError, shouldRetryError, shouldRetryResponse, sleepMs, isStripeErrorPayload, jsonParseOrThrow } from "./utils.js";
 import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, RETRY_BASE_DELAY_MS, DEFAULT_TIMEOUT_MS, USER_AGENT } from "./constants.js";
+import formurlencoded, { type formUrlEncoded } from './form-urlencoded.js';
+
+const properFormUrlEncodedOptions: formUrlEncoded.FormEncodedOptions = {
+  sorted: false,
+  skipIndex: false,
+  ignorenull: false,
+  ignoreEmptyArray: false,
+  skipBracket: false,
+  useDot: false,
+  whitespace: "%20"
+};
 
 interface PreparedRequest {
   url: URL;
@@ -16,7 +27,7 @@ type ExecutedAttemptOutcome<T> = {
   result: SimpleStripeResult<T>;
 };
 
-export class StripeClient {
+export class SimpleStripeClient {
   public timeoutMs = DEFAULT_TIMEOUT_MS;
   public baseUrl = DEFAULT_BASE_URL;
   public readonly headers = new Headers();
@@ -207,7 +218,7 @@ function buildRequestBody(method: string, headers: Headers, options: SimpleStrip
     headers.set("Content-Type", "application/x-www-form-urlencoded");
   }
 
-  return toStripeSearchParams(options.body).toString();
+  return formurlencoded(options.body, properFormUrlEncodedOptions);
 }
 
 function buildSuccessResult<T>(response: Response, json: any): SimpleStripeResult<T> {
