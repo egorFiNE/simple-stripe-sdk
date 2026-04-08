@@ -33,7 +33,7 @@ export class SimpleStripeClient {
   public maxRetries = DEFAULT_MAX_RETRIES;;
 
   public constructor(public readonly apiKey: string, public readonly apiVersion?: string) {
-    this.headers.set("Authorization", `Bearer ${this.apiKey}`);
+    this.headers.set("Authorization", "Bearer " + this.apiKey);
     this.headers.set("Accept", "application/json");
     this.headers.set("User-Agent", USER_AGENT);
 
@@ -184,7 +184,8 @@ function buildHeaders(defaultHeaders: Headers, additionalHeaders?: Record<string
   }
 
 function buildUrl(baseUrl: string, path: string, params?: Record<string, unknown>): URL {
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const normalizedPath = path.startsWith("/") ? path : ('/' + path);
+
   const url = new URL(normalizedPath, baseUrl);
 
   if (params) {
