@@ -1,8 +1,7 @@
-import { toStripeSearchParams } from "./serialization.js";
 import type { SimpleStripeFailure, SimpleStripeRequestOptions, SimpleStripeResult } from "./types.js";
 import { computeRetryDelayMs, isAbortError, shouldRetryError, shouldRetryResponse, sleepMs, isStripeErrorPayload, jsonParseOrThrow } from "./utils.js";
 import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, RETRY_BASE_DELAY_MS, DEFAULT_TIMEOUT_MS, USER_AGENT } from "./constants.js";
-import formurlencoded, { type formUrlEncoded } from './form-urlencoded.js';
+import formurlencoded, { type formUrlEncoded } from './form-urlencoded.mjs';
 
 const properFormUrlEncodedOptions: formUrlEncoded.FormEncodedOptions = {
   sorted: false,
@@ -186,12 +185,10 @@ function buildHeaders(defaultHeaders: Headers, additionalHeaders?: Record<string
 
 function buildUrl(baseUrl: string, path: string, params?: Record<string, unknown>): URL {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-
   const url = new URL(normalizedPath, baseUrl);
 
   if (params) {
-    const searchParams = toStripeSearchParams(params);
-    searchParams.forEach((value, key) => url.searchParams.append(key, value));
+    url.search = formurlencoded(params, properFormUrlEncodedOptions);
   }
 
   return url;

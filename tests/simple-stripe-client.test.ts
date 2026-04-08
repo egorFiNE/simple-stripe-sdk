@@ -55,6 +55,86 @@ describe("SimpletripeClient", () => {
     }
   });
 
+  it("serializes nested query params using form-urlencoded", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe(
+        "https://api.stripe.com/v1/customers?customer=cus_123&metadata%5Bteam%5D=core&metadata%5Bnested%5D%5Bflag%5D=true",
+      );
+
+      return jsonResponse({
+        object: "list",
+        data: [],
+      });
+    });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+
+    const result = await client.get<{ object: string; data: unknown[] }>("/v1/customers", {
+      params: {
+        customer: "cus_123",
+        metadata: {
+          team: "core",
+          nested: {
+            flag: true,
+          },
+        },
+      },
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("serializes array query params using form-urlencoded", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe(
+        "https://api.stripe.com/v1/prices?expand%5B0%5D=product&expand%5B1%5D=data.currency_options",
+      );
+
+      return jsonResponse({
+        object: "list",
+        data: [],
+      });
+    });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+
+    const result = await client.get<{ object: string; data: unknown[] }>("/v1/prices", {
+      params: {
+        expand: ["product", "data.currency_options"],
+      },
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("preserves null-ish query intent and skips undefined values", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe("https://api.stripe.com/v1/customers?provided=null");
+
+      return jsonResponse({
+        object: "list",
+        data: [],
+      });
+    });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+
+    const result = await client.get<{ object: string; data: unknown[] }>("/v1/customers", {
+      params: {
+        provided: null,
+        skipped: undefined,
+      },
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
   it("form-encodes POST bodies by default", async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       expect(init?.method).toBe("POST");
