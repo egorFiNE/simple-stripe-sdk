@@ -1,6 +1,6 @@
 # simple-stripe-sdk
 
-`simple-stripe-sdk` is a thin zero-deps TypeScript client for the [Stripe REST API](https://docs.stripe.com/api).
+`simple-stripe-sdk` is a thin zero-deps TypeScript client for the [Stripe REST API](https://docs.stripe.com/api) for Node.js and Bun
 
 ## Philosophy
 
@@ -175,9 +175,9 @@ if (result.ok) {
 }
 ```
 
-If you need to POST a different `body`, set `bodyEncoding` explicitly.
+If you need to POST a different `body`, set `bodyEncoding` explicitly. The default `bodyEncoding` is `form`.
 
-To send json:
+#### To send json
 
 ```ts
 await client.post("/v1/test", {
@@ -186,7 +186,7 @@ await client.post("/v1/test", {
 });
 ```
 
-To send raw body:
+#### To send raw body
 
 ```ts
 await client.post("/v1/test", {
@@ -194,8 +194,6 @@ await client.post("/v1/test", {
   body: Buffer.from("Hello")
 });
 ```
-
-The default `bodyEncoding` is `form`.
 
 ## The `list()` Helper
 
@@ -293,12 +291,11 @@ This is a direct client for Stripe's API.
 ## Building And Testing
 
 ```bash
-bun run build
-bun run test
-bun run test:live
-bun run typecheck
-bun run typecheck:consumer
-bun run check
+npm run build
+npm run test
+npm run lint:oxlint
+npm run lint:eslint
+npm run check
 ```
 
 ### Live tests
@@ -313,7 +310,7 @@ Example:
 ```bash
 STRIPE_TEST_API_KEY=sk_test_... \
 STRIPE_TEST_API_VERSION=2025-09-30.clover \
-bun run test:live
+npm run test:live
 ```
 
 Smoke tests are read only and safe to run on a staging sandbox.
