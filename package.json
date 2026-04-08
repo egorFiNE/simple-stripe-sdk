@@ -1,9 +1,21 @@
 {
   "name": "simple-stripe-sdk",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "license": "MIT",
-  "description": "Simple Stripe SDK for TypeScript",
+  "description": "A thin zero-deps TypeScript client for the Stripe REST API",
+  "keywords": [
+    "stripe",
+    "javascript",
+    "typescript",
+    "api",
+    "sdk"
+  ],
   "homepage": "https://github.com/egorFiNE/simple-stripe-sdk#readme",
+  "author": {
+    "name": "Egor Egorov",
+    "email": "me@egorfine.com",
+    "url": "https://egorfine.com/en/"
+  },
   "bugs": {
     "url": "https://github.com/egorFiNE/simple-stripe-sdk/issues"
   },
@@ -28,15 +40,17 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run clean && tsc -p tsconfig.json && cp src/form-urlencoded.mjs dist/src/",
     "clean": "rm -rf dist",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:live": "vitest run tests/live.stripe.test.ts",
-    "typecheck": "tsc --noEmit",
     "lint:oxlint": "oxlint src tests",
     "lint:eslint": "eslint src",
-    "check": "bun run typecheck && bun run test && bun run build"
+    "lint": "npm run lint:oxlint && npm run lint:eslint",
+    "smoke:dist": "node --input-type=module -e \"import('./dist/src/index.js').then(() => console.log('dist import ok'))\"",
+    "check": "npm run lint && npm run test && npm run build && npm run smoke:dist",
+    "prepublishOnly": "npm run check"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.5",
