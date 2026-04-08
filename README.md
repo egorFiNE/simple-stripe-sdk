@@ -251,6 +251,10 @@ Notes:
 
 TODO
 
+## Webhooks parsing and signature verification
+
+TODO
+
 ## Stripe API version support
 
 To specify API version explicitly - provide it as a second constructor argument:
