@@ -34,7 +34,7 @@ npm install simple-stripe-sdk
 ```
 
 ```ts
-import { SimpleStripeClient } from "simple-stripe-sdk";
+import { SimpleStripeClient, errorToString } from "simple-stripe-sdk";
 
 const client = new SimpleStripeClient(process.env.STRIPE_TEST_API_KEY);
 
@@ -48,9 +48,10 @@ const response = await client.get<Customer>('/v1/customers/cust_xxxxx');
 
 if (response.ok) {
   console.log(`Customer email is ${response.data.email} and name ${response.data.name}`);
+
 } else {
-  console.log(`Failed to get customer`);
-  FIXME error serializer
+  // Use the provided helper to convert `error` object to a human-readable string
+  console.log(`Failed to get customer: ${errorToString(response.error)}`);
 }
 ```
 
@@ -116,8 +117,7 @@ Possible error kinds:
 - `http`: Stripe returned a non-2xx response that was not recognized as a Stripe error payload;
 - `decode`: Stripe responded successfully, but the body could not be parsed as JSON.
 
-FIXME error stringifier
-FIXME error insead of kind
+`simple-stripe-sdk` also exports a simple helper, `errorToString()` that takes `response.error` as argument and returns a human-readalbe string with error explanation.
 
 ## Examples
 
@@ -150,7 +150,7 @@ if (response.ok) {
 `post()` form-encodes request bodies by default, which matches Stripe's `application/x-www-form-urlencoded` request style.
 
 ```ts
-import { SimpleStripeClient } from "simple-stripe-sdk";
+import { SimpleStripeClient, errorToString } from "simple-stripe-sdk";
 
 type Customer = {
   id: string;
@@ -171,8 +171,8 @@ const result = await client.post<Customer>("/v1/customers", {
 if (result.ok) {
   console.log(result.data.id);
 } else {
-  console.log(`Error creating customer`);
-} FIXME error stringifier
+  console.log(`Error creating customer: ${errorToString(response.error)}`);
+}
 ```
 
 If you need to POST a different `body`, set `bodyEncoding` explicitly.

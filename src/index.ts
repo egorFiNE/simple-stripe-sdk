@@ -1,12 +1,9 @@
 export { SimpleStripeClient } from "./simple-stripe-client.js";
+export { errorToString } from "./utils.js";
 
 export type {
-  SimpleStripeApiError,
-  SimpleStripeDecodeError,
   SimpleStripeError,
   SimpleStripeFailure,
-  SimpleStripeFetchError,
-  SimpleStripeHttpError,
   SimpleStripeListResult,
   SimpleStripeListSuccess,
   SimpleStripeListSuccessAllOfIt,
@@ -14,6 +11,5 @@ export type {
   SimpleStripeRequestListOptions,
   SimpleStripeRequestOptions,
   SimpleStripeResult,
-  SimpleStripeSuccess,
-  SimpleStripeTimeoutError
+  SimpleStripeSuccess
 } from "./types.js";

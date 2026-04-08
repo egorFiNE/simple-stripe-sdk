@@ -5,7 +5,7 @@ import type {
   SimpleStripeRequestOptions,
   SimpleStripeResult,
 } from "./types.js";
-import { computeRetryDelayMs, isAbortError, shouldRetryError, shouldRetryResponse, sleepMs, isStripeErrorPayload, jsonParseOrThrow } from "./utils.js";
+import { computeRetryDelayMs, isAbortError, shouldRetryError, shouldRetryResponse, sleepMs, isStripeErrorPayload, jsonParseWithCatch } from "./utils.js";
 import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, RETRY_BASE_DELAY_MS, DEFAULT_TIMEOUT_MS, USER_AGENT } from "./constants.js";
 import formurlencoded, { type formUrlEncoded } from './form-urlencoded.mjs';
 
@@ -206,13 +206,35 @@ export class SimpleStripeClient {
 
       const response = await fetch(preparedRequest.url, fetchOptions);
 
-      const json = await jsonParseOrThrow(response);
+      const json = await jsonParseWithCatch(response);
 
       if (response.ok) {
+        if (json === null) {
+          return {
+            shouldReturn: true,
+            delayMs: 0,
+            result: {
+              ok: false,
+              error: {
+                kind: "decode",
+                message: "Stripe returned a successful response, but the body was not valid JSON.",
+                status: response.status
+              },
+            }
+          };
+        }
+
         return {
           shouldReturn: true,
           delayMs: 0,
-          result: buildSuccessResult<T>(response, json)
+          result: {
+            ok: true,
+            data: json as T,
+            meta: {
+              status: response.status,
+              headers: response.headers
+            }
+          }
         };
       }
 
@@ -233,7 +255,8 @@ export class SimpleStripeClient {
         result = {
           ok: false,
           error: {
-            kind: "timeout"
+            kind: "timeout",
+            message: "Timed out after " + this.timeoutMs + "ms"
           },
         };
 
@@ -309,28 +332,6 @@ function buildRequestBody(method: string, headers: Headers, options: SimpleStrip
   return formurlencoded(options.body, properFormUrlEncodedOptions);
 }
 
-function buildSuccessResult<T>(response: Response, json: any): SimpleStripeResult<T> {
-  if (json === null) {
-    return {
-      ok: false,
-      error: {
-        kind: "decode",
-        message: "Stripe returned a successful response, but the body was not valid JSON.",
-        status: response.status
-      },
-    };
-  }
-
-  return {
-    ok: true,
-    data: json as T,
-    meta: {
-      status: response.status,
-      headers: response.headers
-    }
-  };
-}
-
 function buildFailureFromResponse(response: Response, json: any): SimpleStripeFailure {
   if (isStripeErrorPayload(json)) {
     // https://docs.stripe.com/api/errors#errors-decline_code
@@ -353,7 +354,7 @@ function buildFailureFromResponse(response: Response, json: any): SimpleStripeFa
       kind: "http",
       message: `Stripe request failed with status ${response.status}.`,
       status: response.status,
-      body: json
+      raw: json
     },
   };
 }

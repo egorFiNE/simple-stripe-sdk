@@ -71,10 +71,34 @@ export function sleepMs(delayMs: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, delayMs));
 }
 
-export async function jsonParseOrThrow(response: Response): Promise<any> {
+export async function jsonParseWithCatch(response: Response): Promise<any> {
   try {
     return await response.json();
   } catch {
     return null;
   }
+}
+
+export function errorToString(error: SimpleStripeError): string {
+  if (error.kind === "stripe") {
+    return `Stripe error: ${error.message} (type: ${error.type}, code: ${error.code}, HTTP status: ${error.status})`;
+  }
+
+  if (error.kind === "fetch") {
+    return `Fetch error: ${error.message}`;
+  }
+
+  if (error.kind === "timeout") {
+    return `Request timed out`;
+  }
+
+  if (error.kind === "decode") {
+    return error.message;
+  }
+
+  if (error.kind === "http") {
+    return `HTTP error: ${error.message} (HTTP status: ${error.status})`;
+  }
+
+  return `Unknown error: ${error.message}`;
 }

@@ -11,12 +11,9 @@ describe.runIf(Boolean(stripeKey && stripeVersion))("live Stripe smoke tests", (
   it("lists a small page of customers against Stripe", async () => {
     const client = new SimpleStripeClient(stripeKey, stripeVersion);
 
-    const result = await client.get<{
-      object: "list";
-      data: Array<{
-        id: string;
-        object: string;
-      }>;
+    const result = await client.list<{
+      id: string;
+      email: string;
     }>("/v1/customers", {
       params: {
         limit: 1,
@@ -26,12 +23,7 @@ describe.runIf(Boolean(stripeKey && stripeVersion))("live Stripe smoke tests", (
     expect(result.ok).toBe(true);
 
     if (result.ok) {
-      expect(result.data.object).toBe("list");
-      expect(Array.isArray(result.data.data)).toBe(true);
-      expect(result.meta.status).toBe(200);
+      expect(Array.isArray(result.data)).toBe(true);
     }
   });
 });
-
-// FIXME conver to list()
-

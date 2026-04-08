@@ -1,6 +1,7 @@
 {
   "name": "simple-stripe-sdk",
   "version": "0.0.1",
+  "license": "MIT",
   "description": "Simple Stripe SDK for TypeScript",
   "homepage": "https://github.com/egorFiNE/simple-stripe-sdk#readme",
   "bugs": {
