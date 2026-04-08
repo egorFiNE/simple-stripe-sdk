@@ -1,4 +1,4 @@
-import { isSerializableRecord, toStripeSearchParams } from "./serialization.js";
+import { toStripeSearchParams } from "./serialization.js";
 import type { SimpleStripeFailure, SimpleStripeRequestOptions, SimpleStripeResult } from "./types.js";
 import { computeRetryDelayMs, isAbortError, shouldRetryError, shouldRetryResponse, sleepMs, isStripeErrorPayload, jsonParseOrThrow } from "./utils.js";
 import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, RETRY_BASE_DELAY_MS, DEFAULT_TIMEOUT_MS, USER_AGENT } from "./constants.js";
@@ -187,7 +187,6 @@ function buildUrl(baseUrl: string, path: string, params?: Record<string, unknown
 }
 
 function buildRequestBody(method: string, headers: Headers, options: SimpleStripeRequestOptions): any {
-  // GET requests do not carry a body in fetch, so we skip body work entirely.
   if (method === "GET" || !options.body) {
     return null;
   }
@@ -204,15 +203,11 @@ function buildRequestBody(method: string, headers: Headers, options: SimpleStrip
     return JSON.stringify(options.body);
   }
 
-  if (isSerializableRecord(options.body)) {
-    if (!headers.has("Content-Type")) {
-      headers.set("Content-Type", "application/x-www-form-urlencoded");
-    }
-
-    return toStripeSearchParams(options.body).toString();
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/x-www-form-urlencoded");
   }
 
-  return null;
+  return toStripeSearchParams(options.body).toString();
 }
 
 function buildSuccessResult<T>(response: Response, json: any): SimpleStripeResult<T> {

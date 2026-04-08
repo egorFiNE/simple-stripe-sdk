@@ -59,12 +59,12 @@ export interface SimpleStripeRequestBaseOptions {
 
 export interface SimpleStripeFormRequestOptions extends SimpleStripeRequestBaseOptions {
   bodyEncoding?: "form";
-  body?: Record<string, any>; // FIXME lessen detection on body
+  body?: Record<string, any>;
 }
 
 export interface SimpleStripeJsonRequestOptions extends SimpleStripeRequestBaseOptions {
   bodyEncoding: "json";
-  body?: unknown;
+  body?: any;
 }
 
 export interface SimpleStripeRawRequestOptions extends SimpleStripeRequestBaseOptions {

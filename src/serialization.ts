@@ -3,10 +3,6 @@ interface KeyValuePair {
   value: string;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function isScalar(value: unknown): value is string | number | boolean | null {
   return value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean";
 }
@@ -29,6 +25,7 @@ function appendPairs(
       key,
       value: value === null ? "" : String(value),
     });
+
     return;
   }
 
@@ -39,34 +36,23 @@ function appendPairs(
       const nextKey = isScalar(item) ? `${key}[]` : `${key}[${index}]`;
       appendPairs(pairs, nextKey, item);
     });
+
     return;
   }
 
-  Object.entries(value).forEach(([childKey, childValue]) => {
-    appendPairs(pairs, `${key}[${childKey}]`, childValue);
-  });
-}
-
-function toStripeKeyValuePairs(input: Record<string, unknown>): KeyValuePair[] {
-  const pairs: KeyValuePair[] = [];
-
-  Object.entries(input).forEach(([key, value]) => {
-    appendPairs(pairs, key, value);
-  });
-
-  return pairs;
+  Object.entries(value).forEach(([childKey, childValue]) => appendPairs(pairs, `${key}[${childKey}]`, childValue));
 }
 
 export function toStripeSearchParams(input: Record<string, unknown>): URLSearchParams {
+  const pairs: KeyValuePair[] = [];
+
+  Object.entries(input).forEach(([key, value]) => appendPairs(pairs, key, value));
+
   const params = new URLSearchParams();
 
-  for (const pair of toStripeKeyValuePairs(input)) {
+  for (const pair of pairs) {
     params.append(pair.key, pair.value);
   }
 
   return params;
-}
-
-export function isSerializableRecord(value: unknown): value is Record<string, unknown> {
-  return isPlainObject(value);
 }
