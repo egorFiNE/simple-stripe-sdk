@@ -1,5 +1,20 @@
-import type { SimpleStripeError } from "./types.js";
+import { setTimeout } from "node:timers/promises";
 import { RETRY_BASE_DELAY_MS } from "./constants.js";
+import type { SimpleStripeError } from "./types.js";
+
+function isMethodRetryable(method1?: string, headers?: HeadersInit): boolean {
+  const method = (method1 ?? "GET").toUpperCase();
+
+  if (method === "GET" || method === "DELETE") {
+    return true;
+  }
+
+  // Retrying mutating requests without an idempotency key is a footgun.
+  // We keep the SDK conservative here so retries help more often than they hurt.
+
+  // @ts-expect-error I don't feel like indulging to the type gymnastics required to make HeadersInit happy here.
+  return headers ? headers["Idempotency-Key"] !== undefined : false;
+}
 
 export function shouldRetryResponse(response: Response, method?: string, headers?: HeadersInit): boolean {
   if (!isMethodRetryable(method, headers)) {
@@ -15,20 +30,6 @@ export function shouldRetryError(error: SimpleStripeError, method?: string, head
   }
 
   return error.kind === "timeout" || error.kind === "fetch";
-}
-
-function isMethodRetryable(method1?: string, headers?: HeadersInit): boolean {
-  const method = (method1 ?? "GET").toUpperCase();
-
-  if (method === "GET" || method === "DELETE") {
-    return true;
-  }
-
-  // Retrying mutating requests without an idempotency key is a footgun.
-  // We keep the SDK conservative here so retries help more often than they hurt.
-
-  // @ts-expect-error I don't feel like indulging to the type gymnastics required to make HeadersInit happy here.
-  return headers ? headers["Idempotency-Key"] !== undefined : false;
 }
 
 function parseRetryAfterHeader(value: string | null): number | null {
@@ -67,8 +68,8 @@ export function isStripeErrorPayload(value: unknown): boolean {
   return typeof value.error === "object" && value.error !== null;
 }
 
-export function sleepMs(delayMs: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, delayMs));
+export async function sleepMs(delayMs: number): Promise<void> {
+  await setTimeout(delayMs);
 }
 
 export async function jsonParseWithCatch(response: Response): Promise<any> {

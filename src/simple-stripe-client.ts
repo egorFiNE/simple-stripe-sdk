@@ -1,13 +1,7 @@
-import type {
-  SimpleStripeFailure,
-  SimpleStripeListResult,
-  SimpleStripeRequestListOptions,
-  SimpleStripeRequestOptions,
-  SimpleStripeResult,
-} from "./types.js";
-import { computeRetryDelayMs, isAbortError, shouldRetryError, shouldRetryResponse, sleepMs, isStripeErrorPayload, jsonParseWithCatch } from "./utils.js";
-import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, RETRY_BASE_DELAY_MS, DEFAULT_TIMEOUT_MS, USER_AGENT } from "./constants.js";
-import formurlencoded, { type formUrlEncoded } from './form-urlencoded.mjs';
+import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT_MS, RETRY_BASE_DELAY_MS, USER_AGENT } from "./constants.js";
+import formurlencoded, { type formUrlEncoded } from "./form-urlencoded.mjs";
+import { computeRetryDelayMs, isAbortError, isStripeErrorPayload, jsonParseWithCatch, shouldRetryError, shouldRetryResponse, sleepMs } from "./utils.js";
+import type { SimpleStripeFailure, SimpleStripeListResult, SimpleStripeRequestListOptions, SimpleStripeRequestOptions, SimpleStripeResult } from "./types.js";
 
 const properFormUrlEncodedOptions: formUrlEncoded.FormEncodedOptions = {
   sorted: false,
@@ -19,12 +13,12 @@ const properFormUrlEncodedOptions: formUrlEncoded.FormEncodedOptions = {
   whitespace: "%20"
 };
 
-interface PreparedRequest {
+type PreparedRequest = {
   url: URL;
   method: string;
   headers: Headers;
   body?: any;
-}
+};
 
 type ExecutedAttemptOutcome<T> = {
   shouldReturn: boolean;
@@ -32,20 +26,20 @@ type ExecutedAttemptOutcome<T> = {
   result: SimpleStripeResult<T>;
 };
 
-interface StripeListPayload<T> {
+type StripeListPayload<T> = {
   data: T[];
   has_more?: boolean;
-}
+};
 
-interface StripeEntityWithId {
+type StripeEntityWithId = {
   id: string;
-}
+};
 
 export class SimpleStripeClient {
   public timeoutMs = DEFAULT_TIMEOUT_MS;
   public baseUrl = DEFAULT_BASE_URL;
   public readonly headers = new Headers();
-  public maxRetries = DEFAULT_MAX_RETRIES;;
+  public maxRetries = DEFAULT_MAX_RETRIES;
 
   public constructor(public readonly apiKey: string, public readonly apiVersion?: string) {
     this.headers.set("Authorization", "Bearer " + this.apiKey);
@@ -90,7 +84,7 @@ export class SimpleStripeClient {
 
     while (true) {
       const params: Record<string, unknown> = {
-        ...(options.params ?? {}),
+        ...options.params,
         limit: batchSize
       };
 
@@ -101,7 +95,7 @@ export class SimpleStripeClient {
       // Stripe might return a single entry instead of a list because we don't know what path has been supplied to us here.
       const result = await this.request<StripeListPayload<T> | T>("GET", path, {
         ...options,
-        params,
+        params
       });
 
       if (!result.ok) {
@@ -135,7 +129,7 @@ export class SimpleStripeClient {
           ok: true,
           data,
           hasMore: true,
-          lastId: lastItem.id,
+          lastId: lastItem.id
         };
       }
 
@@ -144,7 +138,6 @@ export class SimpleStripeClient {
         data,
         hasMore: false
       };
-
     }
   }
 
@@ -172,7 +165,7 @@ export class SimpleStripeClient {
       error: {
         kind: "fetch",
         message: "Stripe request did not produce a result."
-      },
+      }
     };
   }
 
@@ -197,7 +190,7 @@ export class SimpleStripeClient {
       const fetchOptions: any = {
         headers: preparedRequest.headers,
         method: preparedRequest.method,
-        signal: timeoutController.signal,
+        signal: timeoutController.signal
       };
 
       if (preparedRequest.body) {
@@ -219,7 +212,7 @@ export class SimpleStripeClient {
                 kind: "decode",
                 message: "Stripe returned a successful response, but the body was not valid JSON.",
                 status: response.status
-              },
+              }
             }
           };
         }
@@ -257,7 +250,7 @@ export class SimpleStripeClient {
           error: {
             kind: "timeout",
             message: "Timed out after " + this.timeoutMs + "ms"
-          },
+          }
         };
 
       } else {
@@ -266,8 +259,8 @@ export class SimpleStripeClient {
           error: {
             kind: "fetch",
             message: String(error)
-          },
-        }
+          }
+        };
       }
 
       const shouldRetry = shouldRetryError(result.error, preparedRequest.method, preparedRequest.headers);
@@ -285,16 +278,16 @@ export class SimpleStripeClient {
 }
 
 function buildHeaders(defaultHeaders: Headers, additionalHeaders?: Record<string, string>): Headers {
-    const headers = new Headers(defaultHeaders);
+  const headers = new Headers(defaultHeaders);
 
-    if (additionalHeaders) {
-      for (const [ header, value ] of Object.entries(additionalHeaders)) {
-        headers.set(header, value);
-      }
+  if (additionalHeaders) {
+    for (const [ header, value ] of Object.entries(additionalHeaders)) { // eslint-disable-line no-restricted-syntax
+      headers.set(header, value);
     }
-
-    return headers;
   }
+
+  return headers;
+}
 
 function buildUrl(baseUrl: string, path: string, params?: Record<string, unknown>): URL {
   const normalizedPath = path.startsWith("/") ? path : ('/' + path);
@@ -355,7 +348,7 @@ function buildFailureFromResponse(response: Response, json: any): SimpleStripeFa
       message: `Stripe request failed with status ${response.status}.`,
       status: response.status,
       raw: json
-    },
+    }
   };
 }
 

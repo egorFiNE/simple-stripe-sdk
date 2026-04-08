@@ -1,3 +1,4 @@
+/* eslint-disable */
 export default (data, opts = {}) => {
   const {
     sorted, ignorenull, ignoreEmptyArray, useDot,

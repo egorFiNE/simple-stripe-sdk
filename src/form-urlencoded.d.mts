@@ -1,5 +1,5 @@
 export namespace formUrlEncoded {
-  export interface FormEncodedOptions {
+  export type FormEncodedOptions = {
     sorted?: boolean;
     skipIndex?: boolean;
     ignorenull?: boolean;
@@ -7,10 +7,10 @@ export namespace formUrlEncoded {
     skipBracket?: boolean;
     useDot?: boolean;
     whitespace?: string;
-  }
+  };
 }
 
 export default function formUrlEncoded(
   data: any,
-  opts?: formUrlEncoded.FormEncodedOptions,
+  opts?: formUrlEncoded.FormEncodedOptions
 ): string;
