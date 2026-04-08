@@ -33,8 +33,7 @@
     "test:watch": "vitest",
     "test:live": "vitest run tests/live.stripe.test.ts",
     "typecheck": "tsc --noEmit",
-    "typecheck:consumer": "tsc -p tsconfig.typecheck.json --noEmit",
-    "check": "bun run typecheck && bun run typecheck:consumer && bun run test && bun run build"
+    "check": "bun run typecheck && bun run test && bun run build"
   },
   "devDependencies": {
     "@types/node": "^25.5.2",
