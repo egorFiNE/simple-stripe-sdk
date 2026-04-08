@@ -13,6 +13,10 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   });
 }
 
+function listItem(id: string) {
+  return { id };
+}
+
 describe("SimpletripeClient", () => {
   const originalFetch = globalThis.fetch;
 
@@ -468,5 +472,195 @@ describe("SimpletripeClient", () => {
     });
 
     expect(result.ok).toBe(true);
+  });
+
+  it("returns a single entity wrapped in an array when list path is not a list endpoint", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      return jsonResponse({
+        id: "cus_single",
+        object: "customer",
+      });
+    }) as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.list<{ id: string; object: string }>("/v1/customers/cus_single");
+
+    expect(result).toEqual({
+      ok: true,
+      data: [
+        {
+          id: "cus_single",
+          object: "customer",
+        },
+      ],
+      hasMore: false,
+    });
+  });
+
+  it("returns an empty success without calling Stripe when limit is zero", async () => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.list<{ id: string }>("/v1/customers", {
+      limit: 0,
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: true,
+      data: [],
+      hasMore: false,
+    });
+  });
+
+  it("uses afterId only on the first page request", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe("https://api.stripe.com/v1/customers?limit=3&starting_after=cus_after");
+
+        return jsonResponse({
+          object: "list",
+          data: [listItem("cus_1"), listItem("cus_2")],
+          has_more: true,
+        });
+      })
+      .mockImplementationOnce(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe("https://api.stripe.com/v1/customers?limit=3&starting_after=cus_2");
+
+        return jsonResponse({
+          object: "list",
+          data: [listItem("cus_3")],
+          has_more: false,
+        });
+      });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.list<{ id: string }>("/v1/customers", {
+      limit: 3,
+      afterId: "cus_after",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({
+      ok: true,
+      data: [listItem("cus_1"), listItem("cus_2"), listItem("cus_3")],
+      hasMore: false,
+    });
+  });
+
+  it("overfetches in batches of 100 and trims to the requested limit", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe("https://api.stripe.com/v1/customers?limit=100");
+
+        return jsonResponse({
+          object: "list",
+          data: Array.from({ length: 100 }, (_, index) => listItem(`cus_${index + 1}`)),
+          has_more: true,
+        });
+      })
+      .mockImplementationOnce(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe("https://api.stripe.com/v1/customers?limit=100&starting_after=cus_100");
+
+        return jsonResponse({
+          object: "list",
+          data: Array.from({ length: 100 }, (_, index) => listItem(`cus_${index + 101}`)),
+          has_more: true,
+        });
+      });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.list<{ id: string }>("/v1/customers", {
+      limit: 150,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      expect(result.data).toHaveLength(150);
+      expect(result.data[0]).toEqual(listItem("cus_1"));
+      expect(result.data.at(-1)).toEqual(listItem("cus_150"));
+      expect(result.hasMore).toBe(true);
+
+      if (result.hasMore) {
+        expect(result.lastId).toBe("cus_150");
+      }
+    }
+  });
+
+  it("returns all items with hasMore false when Stripe exhausts before the limit", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe("https://api.stripe.com/v1/customers?limit=100");
+
+        return jsonResponse({
+          object: "list",
+          data: [listItem("cus_1"), listItem("cus_2")],
+          has_more: true,
+        });
+      })
+      .mockImplementationOnce(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe("https://api.stripe.com/v1/customers?limit=100&starting_after=cus_2");
+
+        return jsonResponse({
+          object: "list",
+          data: [listItem("cus_3")],
+          has_more: false,
+        });
+      });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.list<{ id: string }>("/v1/customers", {
+      limit: 150,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({
+      ok: true,
+      data: [listItem("cus_1"), listItem("cus_2"), listItem("cus_3")],
+      hasMore: false,
+    });
+  });
+
+  it("returns Stripe errors unchanged from list requests", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      return jsonResponse(
+        {
+          error: {
+            type: "invalid_request_error",
+            message: "No such customer.",
+            code: "resource_missing",
+          },
+        },
+        {
+          status: 404,
+        },
+      );
+    }) as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.list<{ id: string }>("/v1/customers", {
+      limit: 100,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        kind: "stripe",
+        code: "resource_missing",
+        status: 404,
+      },
+    });
   });
 });

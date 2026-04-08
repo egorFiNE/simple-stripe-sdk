@@ -26,7 +26,8 @@ function isMethodRetryable(method1?: string, headers?: HeadersInit): boolean {
 
   // Retrying mutating requests without an idempotency key is a footgun.
   // We keep the SDK conservative here so retries help more often than they hurt.
-  // @ts-expect-error FIXME
+
+  // @ts-expect-error I don't feel like indulging to the type gymnastics required to make HeadersInit happy here.
   return headers ? headers["Idempotency-Key"] !== undefined : false;
 }
 

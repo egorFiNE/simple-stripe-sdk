@@ -1,4 +1,10 @@
-import type { SimpleStripeFailure, SimpleStripeRequestOptions, SimpleStripeResult } from "./types.js";
+import type {
+  SimpleStripeFailure,
+  SimpleStripeListResult,
+  SimpleStripeRequestListOptions,
+  SimpleStripeRequestOptions,
+  SimpleStripeResult,
+} from "./types.js";
 import { computeRetryDelayMs, isAbortError, shouldRetryError, shouldRetryResponse, sleepMs, isStripeErrorPayload, jsonParseOrThrow } from "./utils.js";
 import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, RETRY_BASE_DELAY_MS, DEFAULT_TIMEOUT_MS, USER_AGENT } from "./constants.js";
 import formurlencoded, { type formUrlEncoded } from './form-urlencoded.mjs';
@@ -25,6 +31,15 @@ type ExecutedAttemptOutcome<T> = {
   delayMs: number;
   result: SimpleStripeResult<T>;
 };
+
+interface StripeListPayload<T> {
+  data: T[];
+  has_more?: boolean;
+}
+
+interface StripeEntityWithId {
+  id: string;
+}
 
 export class SimpleStripeClient {
   public timeoutMs = DEFAULT_TIMEOUT_MS;
@@ -56,6 +71,81 @@ export class SimpleStripeClient {
 
   public async delete<T>(path: string, options: SimpleStripeRequestOptions = {}): Promise<SimpleStripeResult<T>> {
     return this.request<T>("DELETE", path, options);
+  }
+
+  public async list<T>(path: string, options: SimpleStripeRequestListOptions = {}): Promise<SimpleStripeListResult<T>> {
+    if (options.limit === 0) {
+      return {
+        ok: true,
+        data: [],
+        hasMore: false
+      };
+    }
+
+    const requestedLimit = options.limit || Number.POSITIVE_INFINITY;
+    const collected: T[] = [];
+    const batchSize = Math.min(100, requestedLimit);
+
+    let cursor = options.afterId;
+
+    while (true) {
+      const params: Record<string, unknown> = {
+        ...(options.params ?? {}),
+        limit: batchSize
+      };
+
+      if (cursor) {
+        params.starting_after = cursor;
+      }
+
+      // Stripe might return a single entry instead of a list because we don't know what path has been supplied to us here.
+      const result = await this.request<StripeListPayload<T> | T>("GET", path, {
+        ...options,
+        params,
+      });
+
+      if (!result.ok) {
+        return result;
+      }
+
+      if (!isStripeListPayload(result.data)) {
+        return {
+          ok: true,
+          data: [ result.data ],
+          hasMore: false
+        };
+      }
+
+      collected.push(...result.data.data);
+
+      const hasReachedLimit = collected.length >= requestedLimit;
+      const shouldContinue = !hasReachedLimit && !!result.data.has_more && result.data.data.length > 0;
+
+      if (shouldContinue) {
+        cursor = (result.data.data.at(-1) as StripeEntityWithId).id;
+        continue;
+      }
+
+      const data = collected.slice(0, requestedLimit);
+
+      if (hasReachedLimit && result.data.has_more) {
+        const lastItem = data.at(-1) as StripeEntityWithId;
+
+        return {
+          ok: true,
+          data,
+          hasMore: true,
+          lastId: lastItem.id,
+        };
+      }
+
+      return {
+        ok: true,
+        data,
+        hasMore: false
+      };
+
+    }
   }
 
   public async request<T>(method: string, path: string, options: SimpleStripeRequestOptions = {}): Promise<SimpleStripeResult<T>> {
@@ -266,4 +356,8 @@ function buildFailureFromResponse(response: Response, json: any): SimpleStripeFa
       body: json
     },
   };
+}
+
+function isStripeListPayload<T>(value: unknown): value is StripeListPayload<T> {
+  return typeof value === "object" && value !== null && Array.isArray((value as StripeListPayload<T>).data);
 }

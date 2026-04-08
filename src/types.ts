@@ -5,6 +5,11 @@ export interface SimpleStripeRequestOptions {
   body?: any;
 }
 
+export interface SimpleStripeRequestListOptions extends SimpleStripeRequestOptions {
+  limit?: number;
+  afterId?: string;
+};
+
 // The response is a Result pattern:
 
 export interface SimpleStripeFailure {
@@ -22,6 +27,24 @@ export interface SimpleStripeSuccess<T> {
 }
 
 export type SimpleStripeResult<T> = SimpleStripeSuccess<T> | SimpleStripeFailure;
+
+// This is a Result pattern as well, but the data returned is an array and supports pagation:
+
+export type SimpleStripeListSuccess<T> = {
+  ok: true;
+  data: T[];
+}
+
+export type SimpleStripeListSuccessAllOfIt<T> = SimpleStripeListSuccess<T> & {
+  hasMore: false;
+}
+
+export type SimpleStripeListSuccessHasMore<T> = SimpleStripeListSuccess<T> & {
+  hasMore: true;
+  lastId: string;
+}
+
+export type SimpleStripeListResult<T> = SimpleStripeListSuccessAllOfIt<T> | SimpleStripeListSuccessHasMore<T> | SimpleStripeFailure;
 
 // Variety of stripe errors is here to make sure types are properly used in the simple-stripe-sdk code; not a type gymnastics exercise.
 
