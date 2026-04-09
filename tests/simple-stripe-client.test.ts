@@ -60,6 +60,8 @@ describe("SimpletripeClient", () => {
     expect(result.ok).toBe(true);
 
     if (result.ok) {
+      expect(result.isRaw).toBe(false);
+      // @ts-ignore
       expect(result.data.object).toBe("list");
     }
   });
@@ -700,7 +702,7 @@ describe("SimpletripeClient", () => {
     });
   });
 
-  it.each([-1, 1.5, Number.NaN])("rejects invalid search limits: %p", async (limit) => {
+  it.each([-1, 1.5, Number.NaN])("rejects invalid search limits", async (limit) => {
     const fetchMock = vi.fn();
     globalThis.fetch = fetchMock as typeof fetch;
 
