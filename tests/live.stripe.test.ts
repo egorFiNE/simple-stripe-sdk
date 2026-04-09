@@ -7,7 +7,7 @@ const stripeKey = process.env.STRIPE_TEST_API_KEY as string;
 // @ts-ignore
 const stripeVersion = process.env.STRIPE_TEST_API_VERSION as string;
 
-describe.runIf(Boolean(stripeKey && stripeVersion))("live Stripe smoke tests", () => {
+describe.runIf(Boolean(stripeKey))("live Stripe smoke tests", () => {
   it("lists a small page of customers against Stripe", async () => {
     const client = new SimpleStripeClient(stripeKey, stripeVersion);
 
