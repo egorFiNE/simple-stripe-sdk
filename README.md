@@ -2,18 +2,25 @@
 
 `simple-stripe-sdk` is a thin zero-deps TypeScript client for the [Stripe REST API](https://docs.stripe.com/api) for Node.js and Bun
 
+## Features
+
+* HTTP request helper for Stipe REST API;
+* Zero runtime deps;
+* Handles authentication, Stripe or network errors and retry logic;
+* Bring your own types for subset of fields you need;
+* Ready helpers for list pagination, search and webhooks verification.
+
 ## Philosophy
 
-- Bring only the types you need for the request in front of you;
 - Stay close to raw Stripe REST instead of mirroring Stripe's entire object model locally;
-- No runtime dependencies;
+- Transparent types for Stripe objects;
 - No hardcoded dependency on any Stripe API version;
 - Keep the SDK as a thin layer over:
   - authorization
   - error handling
   - retry logic
   - request serialization
-  - a pagination helper for list endpoints
+  - a pagination helper for list and search endpoints
 
 This package does not try to generate or own Stripe's full schema universe. You define the request and response types you care about and nothing more. Stripe's own REST API [documentation](https://docs.stripe.com/api) is excellent and clearly lays out all the properties and types.
 
@@ -145,6 +152,8 @@ if (response.ok) {
 }
 ```
 
+TODO: option to get raw non-json data from Stripe.
+
 ### `post()`
 
 `post()` form-encodes request bodies by default, which matches Stripe's `application/x-www-form-urlencoded` request style.
@@ -176,6 +185,8 @@ if (result.ok) {
 ```
 
 If you need to POST a different `body`, set `bodyEncoding` explicitly. The default `bodyEncoding` is `form`.
+
+TODO: option to get raw non-json data from Stripe.
 
 #### To send json
 
@@ -249,11 +260,11 @@ Notes:
 
 ## The `search()` Helper
 
-TODO
+WIP very soon.
 
 ## Webhooks parsing and signature verification
 
-TODO
+WIP very soon.
 
 ## Stripe API version support
 
@@ -282,7 +293,7 @@ const response = await client.get<Customer>('/v1/customers/cust_xxxxx', {
 });
 ```
 
-## Retry Tradeoffs
+## Retry behavior
 
 Retry behavior is intentionally conservative:
 
@@ -291,6 +302,8 @@ Retry behavior is intentionally conservative:
 - `Retry-After` is respected when Stripe sends it.
 
 This is a direct client for Stripe's API.
+
+TODO: FIXME idempotent POST/PATCH retries
 
 ## Building And Testing
 
@@ -363,3 +376,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
+
+## Author
+
+Egor Egorov <me@egorfine.com>, https://egorfine.com/en/, a human.
