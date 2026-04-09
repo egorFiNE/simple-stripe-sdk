@@ -384,7 +384,7 @@ describe("SimpletripeClient", () => {
     expect(result.ok).toBe(false);
   });
 
-  it.skip("retries POST when an idempotency key is present", async () => {
+  it("retries POST when an idempotency key is present", async () => {
     const fetchMock = vi
       .fn()
       .mockRejectedValueOnce(new TypeError("network down"))
