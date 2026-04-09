@@ -2,15 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SimpleStripeClient } from "../src/index.js";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
-  return new Response(JSON.stringify(body), {
+  const r = new Response(JSON.stringify(body), {
     status: 200,
     headers: {
-      "content-type": "application/json",
+      "-type": "application/json",
       "request-id": "req_test",
       ...init.headers,
     },
     ...init,
   });
+
+  // Having Content-Type set in the constructor sometimes fails with Bun 1.3.11 and vitest 4.1.3.
+  r.headers.set("Content-Type", "application/json");
+
+  return r;
 }
 
 function listItem(id: string) {
