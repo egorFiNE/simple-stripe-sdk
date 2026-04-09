@@ -41,7 +41,7 @@ type PreparedRequest = {
 };
 
 type ExecutedAttemptOutcome<T> = {
-  shouldReturn: boolean;
+  isFinal: boolean;
   delayMs: number;
   result: SimpleStripeResult<T>;
 };
@@ -130,6 +130,16 @@ export class SimpleStripeClient {
 
       if (!result.ok) {
         return result;
+      }
+
+      if (result.data instanceof ArrayBuffer) {
+        return {
+          ok: false,
+          error: {
+            kind: "validation",
+            message: "List endpoint returned a non-JSON response, which is not supported by the list() method."
+          }
+        };
       }
 
       if (!isStripeListPayload(result.data)) {
@@ -224,6 +234,16 @@ export class SimpleStripeClient {
         return result;
       }
 
+      if (result.data instanceof ArrayBuffer) {
+        return {
+          ok: false,
+          error: {
+            kind: "validation",
+            message: "Search endpoint returned a non-JSON response, which is not supported by the search() method."
+          }
+        };
+      }
+
       if (!isStripeListPayload(result.data)) {
         return {
           ok: true,
@@ -278,9 +298,31 @@ export class SimpleStripeClient {
     const preparedRequest = this.prepareRequest(method, path, options);
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      const { shouldReturn, delayMs, result } = await this.executeAttempt<T>(preparedRequest);
+      const { isFinal, delayMs, result } = await this.executeAttempt<T>(preparedRequest);
 
-      if (shouldReturn) {
+      // if (rawData) {
+      //   if (canReturnRaw) {
+      //     return {
+      //       ok: true,
+      //       isRaw: true,
+      //       data: rawData,
+      //       meta: {
+      //         status: 200,
+      //         headers: preparedRequest.headers
+      //       }
+      //     } as SimpleStripeSuccessRaw;
+      //   } else {
+      //     return {
+      //       ok: false,
+      //       error: {
+      //         kind: "validation",
+      //         message: "Received a non-JSON response, but the request options did not allow returning raw data."
+      //       }
+      //     };
+      //   }
+      // }
+
+      if (isFinal) {
         return result;
       }
 
@@ -315,69 +357,41 @@ export class SimpleStripeClient {
     };
   }
 
-  private async executeAttempt<T>(preparedRequest: PreparedRequest): Promise<ExecutedAttemptOutcome<T>> {
+  private async fetchWithTimeout(preparedRequest: PreparedRequest): Promise<unknown> {
     const timeoutController = new AbortController();
     const timeoutId = setTimeout(() => timeoutController.abort(), this.timeoutMs);
 
+    const fetchOptions: any = {
+      headers: preparedRequest.headers,
+      method: preparedRequest.method,
+      signal: timeoutController.signal
+    };
+
+    if (preparedRequest.body) {
+      fetchOptions.body = preparedRequest.body;
+    }
+
+    let response: Response;
+
     try {
-      const fetchOptions: any = {
-        headers: preparedRequest.headers,
-        method: preparedRequest.method,
-        signal: timeoutController.signal
-      };
-
-      if (preparedRequest.body) {
-        fetchOptions.body = preparedRequest.body;
-      }
-
-      const response = await fetch(preparedRequest.url, fetchOptions);
-
-      const json = await jsonParseWithCatch(response);
-
-      if (response.ok) {
-        if (json === null) {
-          return {
-            shouldReturn: true,
-            delayMs: 0,
-            result: {
-              ok: false,
-              error: {
-                kind: "decode",
-                message: "Stripe returned a successful response, but the body was not valid JSON.",
-                status: response.status
-              }
-            }
-          };
-        }
-
-        return {
-          shouldReturn: true,
-          delayMs: 0,
-          result: {
-            ok: true,
-            data: json as T,
-            meta: {
-              status: response.status,
-              headers: response.headers
-            }
-          }
-        };
-      }
-
-      const shouldRetry = shouldRetryResponse(response, preparedRequest.method, preparedRequest.headers);
-
-      const result = buildFailureFromResponse(response, json);
-
-      return {
-        shouldReturn: !shouldRetry,
-        delayMs: computeRetryDelayMs(response),
-        result
-      };
+      response = await fetch(preparedRequest.url, fetchOptions);
+      return response;
 
     } catch (error) {
+      return error;
+
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  private async executeAttempt<T>(preparedRequest: PreparedRequest): Promise<ExecutedAttemptOutcome<T>> {
+    const r = await this.fetchWithTimeout(preparedRequest);
+
+    if (!(r instanceof Response)) {
       let result: SimpleStripeFailure;
 
-      if (isAbortError(error)) {
+      if (isAbortError(r)) {
         result = {
           ok: false,
           error: {
@@ -391,7 +405,7 @@ export class SimpleStripeClient {
           ok: false,
           error: {
             kind: "fetch",
-            message: String(error)
+            message: String(r instanceof Error ? r.message : r)
           }
         };
       }
@@ -399,14 +413,87 @@ export class SimpleStripeClient {
       const shouldRetry = shouldRetryError(result.error, preparedRequest.method, preparedRequest.headers);
 
       return {
-        shouldReturn: !shouldRetry,
+        isFinal: !shouldRetry,
         delayMs: RETRY_BASE_DELAY_MS,
         result
       };
-
-    } finally {
-      clearTimeout(timeoutId);
     }
+
+    let json: any = null;
+    // let rawArrayBuffer: ArrayBuffer | null = null;
+
+    const response = r;
+
+    const isResponseJson = response.headers.get('content-type')?.includes('application/json');
+
+    if (isResponseJson) {
+      json = await jsonParseWithCatch(response);
+
+    } else {
+      // rawArrayBuffer = await response.arrayBuffer();
+    }
+
+    if (!response.ok) {
+      const shouldRetry = shouldRetryResponse(response, preparedRequest.method, preparedRequest.headers);
+
+      const result = buildFailureFromResponse(response, json);
+
+      return {
+        isFinal: !shouldRetry,
+        delayMs: computeRetryDelayMs(response),
+        result
+      };
+    }
+
+    // Response is ok at this point
+
+    if (isResponseJson) {
+      // Content-type is json, but no json has been decoded. Probably never happens with Stripe.
+      if (json === null) {
+        return {
+          isFinal: true,
+          delayMs: 0,
+          result: {
+            ok: false,
+            error: {
+              kind: "decode",
+              message: "Stripe returned a successful response, but the body was not valid JSON.",
+              status: response.status
+            }
+          }
+        };
+      }
+
+      // The most successful case of them all
+      return {
+        isFinal: true,
+        delayMs: 0,
+        result: {
+          ok: true,
+          data: json as T,
+          meta: {
+            status: response.status,
+            headers: response.headers
+          }
+        }
+      };
+    }
+
+    // Response is NOT JSON at this point
+
+    // FIXME here the non-json response must be managed
+    return {
+      isFinal: true,
+      delayMs: 0,
+      result: {
+        ok: false,
+        error: {
+          kind: "decode",
+          message: "Stripe returned a successful response, but the body was not valid JSON.",
+          status: response.status
+        }
+      }
+    };
   }
 }
 

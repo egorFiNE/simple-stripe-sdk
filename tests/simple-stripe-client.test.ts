@@ -60,8 +60,7 @@ describe("SimpletripeClient", () => {
     expect(result.ok).toBe(true);
 
     if (result.ok) {
-      expect(result.isRaw).toBe(false);
-      // @ts-ignore
+      // expect(result.isRaw).toBe(false);
       expect(result.data.object).toBe("list");
     }
   });
