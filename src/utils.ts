@@ -1,6 +1,6 @@
 import { setTimeout } from "node:timers/promises";
 import { RETRY_BASE_DELAY_MS } from "./constants.js";
-import type { SimpleStripeError } from "./types.js";
+import type { SimpleStripeError, SimpleStripeFailure } from "./types.js";
 
 function isMethodRetryable(method1?: string, headers?: HeadersInit): boolean {
   const method = (method1 ?? "GET").toUpperCase();
@@ -105,4 +105,37 @@ export function errorToString(error: SimpleStripeError): string {
   }
 
   return `Unknown error: ${error.message}`;
+}
+
+export function validateLimitAndPossiblyReturnFailure(limit?: number): SimpleStripeFailure | null {
+  if (limit !== undefined && (!Number.isInteger(limit) || limit < 0)) {
+    return {
+      ok: false,
+      error: {
+        kind: "validation",
+        message: "List limit must be a non-negative integer."
+      }
+    };
+  }
+
+  return null;
+}
+
+export function appendTotalCountToSearchParamsExpand(expand?: unknown): string[] {
+  const values: string[] = [];
+
+  if (Array.isArray(expand)) {
+    for (const value of expand) { // eslint-disable-line no-restricted-syntax
+      values.push(value);
+    }
+
+  } else if (typeof expand === "string" && expand.length > 0) {
+    values.push(expand);
+  }
+
+  if (!values.includes("total_count")) {
+    values.push("total_count");
+  }
+
+  return values;
 }

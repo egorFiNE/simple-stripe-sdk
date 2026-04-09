@@ -1,6 +1,16 @@
 import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT_MS, RETRY_BASE_DELAY_MS, USER_AGENT } from "./constants.js";
 import formurlencoded, { type formUrlEncoded } from "./form-urlencoded.mjs";
-import { computeRetryDelayMs, isAbortError, isStripeErrorPayload, jsonParseWithCatch, shouldRetryError, shouldRetryResponse, sleepMs } from "./utils.js";
+import {
+  computeRetryDelayMs,
+  isAbortError,
+  isStripeErrorPayload,
+  jsonParseWithCatch,
+  shouldRetryError,
+  shouldRetryResponse,
+  sleepMs,
+  validateLimitAndPossiblyReturnFailure,
+  appendTotalCountToSearchParamsExpand
+} from "./utils.js";
 import type {
   SimpleStripeFailure,
   SimpleStripeListResult,
@@ -8,7 +18,9 @@ import type {
   SimpleStripeRequestOptions,
   SimpleStripeRequestSearchOptions,
   SimpleStripeResult,
-  SimpleStripeSearchResult
+  SimpleStripeSearchResult,
+  SimpleStripeSearchSuccessAllOfIt,
+  SimpleStripeSearchSuccessHasMore
 } from "./types.js";
 
 const properFormUrlEncodedOptions: formUrlEncoded.FormEncodedOptions = {
@@ -81,15 +93,9 @@ export class SimpleStripeClient {
   }
 
   public async list<T>(path: string, options: SimpleStripeRequestListOptions = {}): Promise<SimpleStripeListResult<T>> {
-    // FIXME extract this validation logic
-    if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 0)) {
-      return {
-        ok: false,
-        error: {
-          kind: "validation",
-          message: "List limit must be a non-negative integer."
-        }
-      };
+    const validationResult = validateLimitAndPossiblyReturnFailure(options.limit);
+    if (validationResult) {
+      return validationResult as SimpleStripeListResult<T>;
     }
 
     if (options.limit === 0) {
@@ -176,14 +182,9 @@ export class SimpleStripeClient {
       };
     }
 
-    if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 0)) {
-      return {
-        ok: false,
-        error: {
-          kind: "validation",
-          message: "Search limit must be a non-negative integer."
-        }
-      };
+    const validationResult = validateLimitAndPossiblyReturnFailure(options.limit);
+    if (validationResult) {
+      return validationResult;
     }
 
     if (options.limit === 0) {
@@ -199,14 +200,14 @@ export class SimpleStripeClient {
     const batchSize = Math.min(100, requestedLimit);
     let totalCount: number | undefined;
 
-    let page = options.page;
+    let { page } = options;
 
     while (true) {
       const params: Record<string, unknown> = {
         ...options.params,
         query: options.query,
         limit: batchSize,
-        expand: appendSearchExpandTotalCount(options.params?.expand)
+        expand: appendTotalCountToSearchParamsExpand(options.params?.expand)
       };
 
       if (page) {
@@ -245,21 +246,31 @@ export class SimpleStripeClient {
       const data = collected.slice(0, requestedLimit);
 
       if (hasReachedLimit && result.data.has_more && typeof result.data.next_page === "string") {
-        return {
+        const response: SimpleStripeSearchSuccessHasMore<T> = {
           ok: true,
           data,
           hasMore: true,
-          nextPage: result.data.next_page,
-          ...(totalCount !== undefined ? { totalCount } : {})
+          nextPage: result.data.next_page
         };
+
+        if (totalCount !== undefined) {
+          response.totalCount = totalCount;
+        }
+
+        return response;
       }
 
-      return {
+      const response: SimpleStripeSearchSuccessAllOfIt<T> = {
         ok: true,
         data,
-        hasMore: false,
-        ...(totalCount !== undefined ? { totalCount } : {})
+        hasMore: false
       };
+
+      if (totalCount !== undefined) {
+        response.totalCount = totalCount;
+      }
+
+      return response;
     }
   }
 
@@ -476,14 +487,4 @@ function buildFailureFromResponse(response: Response, json: any): SimpleStripeFa
 
 function isStripeListPayload<T>(value: unknown): value is StripeListPayload<T> {
   return typeof value === "object" && value !== null && Array.isArray((value as StripeListPayload<T>).data);
-}
-
-function appendSearchExpandTotalCount(expand: unknown): string[] {
-  const values = Array.isArray(expand)
-    ? expand.filter((value): value is string => typeof value === "string" && value.length > 0)
-    : typeof expand === "string" && expand.length > 0
-      ? [ expand ]
-      : [];
-
-  return values.includes("total_count") ? values : [ ...values, "total_count" ];
 }
