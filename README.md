@@ -206,6 +206,8 @@ await client.post("/v1/test", {
 });
 ```
 
+Note: in case empty body is supplied with `raw` body encoding, the body is discarded and not sent.
+
 ## The `list()` Helper
 
 `list()` is a convenience helper around Stripe list endpoints. It keeps requesting pages until it collects the requested number of items or reaches the end of Stripe's list.
@@ -302,8 +304,6 @@ Retry behavior is intentionally conservative:
 - `Retry-After` is respected when Stripe sends it.
 
 This is a direct client for Stripe's API.
-
-TODO: FIXME idempotent POST/PATCH retries
 
 ## Building And Testing
 
