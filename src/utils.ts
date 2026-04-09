@@ -113,7 +113,7 @@ export function validateLimitAndPossiblyReturnFailure(limit?: number): SimpleStr
       ok: false,
       error: {
         kind: "validation",
-        message: "List limit must be a non-negative integer."
+        message: "Limit must be a non-negative integer."
       }
     };
   }

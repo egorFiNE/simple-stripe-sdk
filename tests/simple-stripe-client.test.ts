@@ -533,7 +533,7 @@ describe("SimpletripeClient", () => {
       ok: false,
       error: {
         kind: "validation",
-        message: "List limit must be a non-negative integer.",
+        message: "Limit must be a non-negative integer.",
       },
     });
   });
@@ -715,7 +715,7 @@ describe("SimpletripeClient", () => {
       ok: false,
       error: {
         kind: "validation",
-        message: "Search limit must be a non-negative integer.",
+        message: "Limit must be a non-negative integer.",
       },
     });
   });
