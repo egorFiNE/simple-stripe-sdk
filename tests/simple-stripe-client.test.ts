@@ -514,6 +514,25 @@ describe("SimpletripeClient", () => {
     });
   });
 
+  it.each([-1, 1.5, Number.NaN])("rejects invalid list limits: %p", async (limit) => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.list<{ id: string }>("/v1/customers", {
+      limit,
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        kind: "validation",
+        message: "List limit must be a non-negative integer.",
+      },
+    });
+  });
+
   it("uses afterId only on the first page request", async () => {
     const fetchMock = vi
       .fn()

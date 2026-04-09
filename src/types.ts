@@ -22,7 +22,7 @@ export type SimpleStripeSuccess<T> = {
 };
 
 export type SimpleStripeError = {
-  kind: "stripe" | "fetch" | "timeout" | "decode" | "http";
+  kind: "stripe" | "fetch" | "timeout" | "decode" | "http" | "validation";
   message: string;
   status?: number; // HTTP status. Not present on timeout.
 

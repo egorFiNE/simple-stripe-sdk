@@ -68,6 +68,16 @@ export class SimpleStripeClient {
   }
 
   public async list<T>(path: string, options: SimpleStripeRequestListOptions = {}): Promise<SimpleStripeListResult<T>> {
+    if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 0)) {
+      return {
+        ok: false,
+        error: {
+          kind: "validation",
+          message: "List limit must be a non-negative integer."
+        }
+      };
+    }
+
     if (options.limit === 0) {
       return {
         ok: true,
@@ -76,7 +86,7 @@ export class SimpleStripeClient {
       };
     }
 
-    const requestedLimit = options.limit || Number.POSITIVE_INFINITY;
+    const requestedLimit = options.limit ?? Number.POSITIVE_INFINITY;
     const collected: T[] = [];
     const batchSize = Math.min(100, requestedLimit);
 

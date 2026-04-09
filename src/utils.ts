@@ -100,5 +100,9 @@ export function errorToString(error: SimpleStripeError): string {
     return `HTTP error: ${error.message} (HTTP status: ${error.status})`;
   }
 
+  if (error.kind === "validation") {
+    return `Validation error: ${error.message}`;
+  }
+
   return `Unknown error: ${error.message}`;
 }
