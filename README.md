@@ -33,6 +33,7 @@ This package does not try to generate or own Stripe's full schema universe. You 
 ### Limitations
 
 * V2 API not yet supported but it's planned;
+* Requests for non-json data is WIP;
 * Webhooks parsing and signature verification is WIP.
 
 ## Install And Runtime
