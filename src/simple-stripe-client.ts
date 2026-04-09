@@ -1,7 +1,15 @@
 import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT_MS, RETRY_BASE_DELAY_MS, USER_AGENT } from "./constants.js";
 import formurlencoded, { type formUrlEncoded } from "./form-urlencoded.mjs";
 import { computeRetryDelayMs, isAbortError, isStripeErrorPayload, jsonParseWithCatch, shouldRetryError, shouldRetryResponse, sleepMs } from "./utils.js";
-import type { SimpleStripeFailure, SimpleStripeListResult, SimpleStripeRequestListOptions, SimpleStripeRequestOptions, SimpleStripeResult } from "./types.js";
+import type {
+  SimpleStripeFailure,
+  SimpleStripeListResult,
+  SimpleStripeRequestListOptions,
+  SimpleStripeRequestOptions,
+  SimpleStripeRequestSearchOptions,
+  SimpleStripeResult,
+  SimpleStripeSearchResult
+} from "./types.js";
 
 const properFormUrlEncodedOptions: formUrlEncoded.FormEncodedOptions = {
   sorted: false,
@@ -29,6 +37,11 @@ type ExecutedAttemptOutcome<T> = {
 type StripeListPayload<T> = {
   data: T[];
   has_more?: boolean;
+};
+
+type StripeSearchPayload<T> = StripeListPayload<T> & {
+  next_page?: string;
+  total_count?: number;
 };
 
 type StripeEntityWithId = {
@@ -68,6 +81,7 @@ export class SimpleStripeClient {
   }
 
   public async list<T>(path: string, options: SimpleStripeRequestListOptions = {}): Promise<SimpleStripeListResult<T>> {
+    // FIXME extract this validation logic
     if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 0)) {
       return {
         ok: false,
@@ -147,6 +161,104 @@ export class SimpleStripeClient {
         ok: true,
         data,
         hasMore: false
+      };
+    }
+  }
+
+  public async search<T>(path: string, options: SimpleStripeRequestSearchOptions): Promise<SimpleStripeSearchResult<T>> {
+    if (typeof options.query !== "string" || options.query.trim().length === 0) {
+      return {
+        ok: false,
+        error: {
+          kind: "validation",
+          message: "Search query must be a non-empty string."
+        }
+      };
+    }
+
+    if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 0)) {
+      return {
+        ok: false,
+        error: {
+          kind: "validation",
+          message: "Search limit must be a non-negative integer."
+        }
+      };
+    }
+
+    if (options.limit === 0) {
+      return {
+        ok: true,
+        data: [],
+        hasMore: false
+      };
+    }
+
+    const requestedLimit = options.limit ?? Number.POSITIVE_INFINITY;
+    const collected: T[] = [];
+    const batchSize = Math.min(100, requestedLimit);
+    let totalCount: number | undefined;
+
+    let page = options.page;
+
+    while (true) {
+      const params: Record<string, unknown> = {
+        ...options.params,
+        query: options.query,
+        limit: batchSize,
+        expand: appendSearchExpandTotalCount(options.params?.expand)
+      };
+
+      if (page) {
+        params.page = page;
+      }
+
+      // Stripe might return a single entry instead of a search payload because we don't know what path has been supplied to us here.
+      const result = await this.request<StripeSearchPayload<T> | T>("GET", path, {
+        ...options,
+        params
+      });
+
+      if (!result.ok) {
+        return result;
+      }
+
+      if (!isStripeListPayload(result.data)) {
+        return {
+          ok: true,
+          data: [ result.data ],
+          hasMore: false
+        };
+      }
+
+      collected.push(...result.data.data);
+      totalCount = typeof result.data.total_count === "number" ? result.data.total_count : totalCount;
+
+      const hasReachedLimit = collected.length >= requestedLimit;
+      const shouldContinue = !hasReachedLimit && !!result.data.has_more && typeof result.data.next_page === "string" && result.data.data.length > 0;
+
+      if (shouldContinue) {
+        page = result.data.next_page;
+        continue;
+      }
+
+      const data = collected.slice(0, requestedLimit);
+
+      if (hasReachedLimit && result.data.has_more && typeof result.data.next_page === "string") {
+        return {
+          ok: true,
+          data,
+          hasMore: true,
+          nextPage: result.data.next_page,
+          ...(totalCount !== undefined ? { totalCount } : {})
+        };
+      }
+
+      return {
+        ok: true,
+        data,
+        hasMore: false,
+        ...(totalCount !== undefined ? { totalCount } : {})
       };
     }
   }
@@ -364,4 +476,14 @@ function buildFailureFromResponse(response: Response, json: any): SimpleStripeFa
 
 function isStripeListPayload<T>(value: unknown): value is StripeListPayload<T> {
   return typeof value === "object" && value !== null && Array.isArray((value as StripeListPayload<T>).data);
+}
+
+function appendSearchExpandTotalCount(expand: unknown): string[] {
+  const values = Array.isArray(expand)
+    ? expand.filter((value): value is string => typeof value === "string" && value.length > 0)
+    : typeof expand === "string" && expand.length > 0
+      ? [ expand ]
+      : [];
+
+  return values.includes("total_count") ? values : [ ...values, "total_count" ];
 }

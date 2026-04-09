@@ -652,6 +652,252 @@ describe("SimpletripeClient", () => {
     });
   });
 
+  it("returns a single entity wrapped in an array when search path is not a search endpoint", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      return jsonResponse({
+        id: "cus_single",
+        object: "customer",
+      });
+    }) as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.search<{ id: string; object: string }>("/v1/customers/cus_single", {
+      query: "email:'single@example.com'",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      data: [
+        {
+          id: "cus_single",
+          object: "customer",
+        },
+      ],
+      hasMore: false,
+    });
+  });
+
+  it("returns an empty search success without calling Stripe when limit is zero", async () => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.search<{ id: string }>("/v1/customers/search", {
+      query: "name:'Jane Doe'",
+      limit: 0,
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: true,
+      data: [],
+      hasMore: false,
+    });
+  });
+
+  it.each([-1, 1.5, Number.NaN])("rejects invalid search limits: %p", async (limit) => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.search<{ id: string }>("/v1/customers/search", {
+      query: "metadata['team']:'core'",
+      limit,
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        kind: "validation",
+        message: "Search limit must be a non-negative integer.",
+      },
+    });
+  });
+
+  it.each([undefined, "", "   "])("rejects invalid search query: %p", async (query) => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.search<{ id: string }>("/v1/customers/search", {
+      query: query as string,
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        kind: "validation",
+        message: "Search query must be a non-empty string.",
+      },
+    });
+  });
+
+  it("uses page only on the first search request and then continues with next_page", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe("https://api.stripe.com/v1/customers/search?query=name%3A%27Jane%20Doe%27&limit=3&expand%5B0%5D=total_count&page=page_1");
+
+        return jsonResponse({
+          object: "search_result",
+          data: [listItem("cus_1"), listItem("cus_2")],
+          has_more: true,
+          next_page: "page_2",
+          total_count: 17,
+        });
+      })
+      .mockImplementationOnce(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe("https://api.stripe.com/v1/customers/search?query=name%3A%27Jane%20Doe%27&limit=3&expand%5B0%5D=total_count&page=page_2");
+
+        return jsonResponse({
+          object: "search_result",
+          data: [listItem("cus_3")],
+          has_more: false,
+          total_count: 17,
+        });
+      });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.search<{ id: string }>("/v1/customers/search", {
+      query: "name:'Jane Doe'",
+      limit: 3,
+      page: "page_1",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({
+      ok: true,
+      data: [listItem("cus_1"), listItem("cus_2"), listItem("cus_3")],
+      hasMore: false,
+      totalCount: 17,
+    });
+  });
+
+  it("overfetches search results in batches of 100 and trims to the requested limit", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe("https://api.stripe.com/v1/customers/search?query=metadata%5Bteam%5D%3A%27core%27&limit=100&expand%5B0%5D=total_count");
+
+        return jsonResponse({
+          object: "search_result",
+          data: Array.from({ length: 100 }, (_, index) => listItem(`cus_${index + 1}`)),
+          has_more: true,
+          next_page: "page_2",
+          total_count: 999,
+        });
+      })
+      .mockImplementationOnce(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe("https://api.stripe.com/v1/customers/search?query=metadata%5Bteam%5D%3A%27core%27&limit=100&expand%5B0%5D=total_count&page=page_2");
+
+        return jsonResponse({
+          object: "search_result",
+          data: Array.from({ length: 100 }, (_, index) => listItem(`cus_${index + 101}`)),
+          has_more: true,
+          next_page: "page_3",
+          total_count: 999,
+        });
+      });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.search<{ id: string }>("/v1/customers/search", {
+      query: "metadata[team]:'core'",
+      limit: 150,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      expect(result.data).toHaveLength(150);
+      expect(result.data[0]).toEqual(listItem("cus_1"));
+      expect(result.data.at(-1)).toEqual(listItem("cus_150"));
+      expect(result.hasMore).toBe(true);
+      expect(result.totalCount).toBe(999);
+
+      if (result.hasMore) {
+        expect(result.nextPage).toBe("page_3");
+      }
+    }
+  });
+
+  it("returns all search items with hasMore false when Stripe exhausts before the limit", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe("https://api.stripe.com/v1/customers/search?query=email%3A%27boss%40corporate.com%27&limit=100&expand%5B0%5D=total_count");
+
+        return jsonResponse({
+          object: "search_result",
+          data: [listItem("cus_1"), listItem("cus_2")],
+          has_more: true,
+          next_page: "page_2",
+          total_count: 3,
+        });
+      })
+      .mockImplementationOnce(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe("https://api.stripe.com/v1/customers/search?query=email%3A%27boss%40corporate.com%27&limit=100&expand%5B0%5D=total_count&page=page_2");
+
+        return jsonResponse({
+          object: "search_result",
+          data: [listItem("cus_3")],
+          has_more: false,
+          total_count: 3,
+        });
+      });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.search<{ id: string }>("/v1/customers/search", {
+      query: "email:'boss@corporate.com'",
+      limit: 150,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({
+      ok: true,
+      data: [listItem("cus_1"), listItem("cus_2"), listItem("cus_3")],
+      hasMore: false,
+      totalCount: 3,
+    });
+  });
+
+  it("preserves existing search expands and appends total_count", async () => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe("https://api.stripe.com/v1/customers/search?expand%5B0%5D=data.default_source&expand%5B1%5D=total_count&query=name%3A%27Jane%20Doe%27&limit=1");
+
+      return jsonResponse({
+        object: "search_result",
+        data: [listItem("cus_1")],
+        has_more: false,
+        total_count: 1,
+      });
+    }) as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.search<{ id: string }>("/v1/customers/search", {
+      query: "name:'Jane Doe'",
+      limit: 1,
+      params: {
+        expand: ["data.default_source"],
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      data: [listItem("cus_1")],
+      hasMore: false,
+      totalCount: 1,
+    });
+  });
+
   it("returns Stripe errors unchanged from list requests", async () => {
     globalThis.fetch = vi.fn(async () => {
       return jsonResponse(
@@ -679,6 +925,38 @@ describe("SimpletripeClient", () => {
         kind: "stripe",
         code: "resource_missing",
         status: 404,
+      },
+    });
+  });
+
+  it("returns Stripe errors unchanged from search requests", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      return jsonResponse(
+        {
+          error: {
+            type: "invalid_request_error",
+            message: "Invalid query.",
+            code: "parameter_invalid_string_empty",
+          },
+        },
+        {
+          status: 400,
+        },
+      );
+    }) as typeof fetch;
+
+    const client = new SimpleStripeClient("sk_test_123");
+    const result = await client.search<{ id: string }>("/v1/customers/search", {
+      query: "email:''",
+      limit: 100,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        kind: "stripe",
+        code: "parameter_invalid_string_empty",
+        status: 400,
       },
     });
   });

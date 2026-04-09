@@ -10,6 +10,12 @@ export type SimpleStripeRequestListOptions = SimpleStripeRequestOptions & {
   afterId?: string;
 };
 
+export type SimpleStripeRequestSearchOptions = SimpleStripeRequestOptions & {
+  query: string;
+  limit?: number;
+  page?: string;
+};
+
 // The response is a Result pattern:
 
 export type SimpleStripeSuccess<T> = {
@@ -58,3 +64,20 @@ export type SimpleStripeListSuccessHasMore<T> = SimpleStripeListSuccess<T> & {
 };
 
 export type SimpleStripeListResult<T> = SimpleStripeListSuccessAllOfIt<T> | SimpleStripeListSuccessHasMore<T> | SimpleStripeFailure;
+
+export type SimpleStripeSearchSuccess<T> = {
+  ok: true;
+  data: T[];
+  totalCount?: number;
+};
+
+export type SimpleStripeSearchSuccessAllOfIt<T> = SimpleStripeSearchSuccess<T> & {
+  hasMore: false;
+};
+
+export type SimpleStripeSearchSuccessHasMore<T> = SimpleStripeSearchSuccess<T> & {
+  hasMore: true;
+  nextPage: string;
+};
+
+export type SimpleStripeSearchResult<T> = SimpleStripeSearchSuccessAllOfIt<T> | SimpleStripeSearchSuccessHasMore<T> | SimpleStripeFailure;

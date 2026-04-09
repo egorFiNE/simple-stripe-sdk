@@ -9,7 +9,12 @@ export type {
   SimpleStripeListSuccessAllOfIt,
   SimpleStripeListSuccessHasMore,
   SimpleStripeRequestListOptions,
+  SimpleStripeRequestSearchOptions,
   SimpleStripeRequestOptions,
+  SimpleStripeSearchResult,
+  SimpleStripeSearchSuccess,
+  SimpleStripeSearchSuccessAllOfIt,
+  SimpleStripeSearchSuccessHasMore,
   SimpleStripeResult,
   SimpleStripeSuccess
 } from "./types.js";

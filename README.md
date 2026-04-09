@@ -30,6 +30,11 @@ This package does not try to generate or own Stripe's full schema universe. You 
 
 2. If you are stuck on an older Stripe API version, tying yourself to an older official SDK release can become its own maintenance problem. If a security fix or a new Node compatibility fix lands only in newer SDK releases, you can end up stuck. This SDK deliberately leaves support for older API versions on Stripe's side, where it belongs. If Stripe still serves that API version, this client can keep talking to it.
 
+### Limitations
+
+* V2 API not yet supported but it's planned;
+* Webhooks parsing and signature verification is WIP.
+
 ## Install And Runtime
 
 `simple-stripe-sdk` is ESM-only, targets Node `>=24`, Bun `>= 1.3` and typescript `>= 6.0`.
@@ -74,6 +79,7 @@ if (response.ok) {
 And a list helper:
 
 - `list<T>(path, options?)`
+- `search<T>(path, options)`
 
 `options` are intentionally small:
 
@@ -86,9 +92,15 @@ And a list helper:
 `list` request additional `options`:
 
 - `limit`: maximum number of records to collect;
-- `afterId`: initial `starting_after` cursor.
+- `afterId`: initial `starting_after` cursor (an object id string).
 
 (all fields are optional)
+
+`search` request additional `options`:
+
+- `query`: Stripe search query string;
+- `limit`: maximum number of records to collect;
+- `page`: initial Stripe `page` cursor (an object id string).
 
 ## Result Pattern
 
@@ -262,11 +274,57 @@ Notes:
 
 ## The `search()` Helper
 
-WIP very soon.
+`search()` is a convenience helper around Stripe search endpoints. It keeps requesting search pages until it collects the requested number of items or reaches the end of Stripe's search result set.
 
-## Webhooks parsing and signature verification
+The helper returns `SimpleStripeSearchResult<T>`, which is either:
 
-WIP very soon.
+- a failure result
+- a success with `hasMore: false` and optional `totalCount`
+- a success with `hasMore: true`, `nextPage`, and optional `totalCount`
+
+### `search()` options
+
+- `query`: required Stripe search query string.
+- `limit`: maximum number of items to return. Default is scary: all of them.
+- `page`: initial cursor, sent as Stripe's `page`. Default: undefined, meaning let's start with the first search page.
+- `params`: any extra params to actually query Stripe.
+
+`search()` always adds Stripe's `expand[]=total_count` to the request, so `result.totalCount` is available on normal search responses without extra setup. If you already pass your own `expand`, `search()` appends `total_count` instead of replacing your values.
+
+### `search()` example
+
+```ts
+import { SimpleStripeClient } from "simple-stripe-sdk";
+
+type Customer = {
+  id: string;
+  email?: string | null;
+};
+
+const client = new SimpleStripeClient(process.env.STRIPE_TEST_API_KEY!);
+
+const result = await client.search<Customer>("/v1/customers/search", {
+  query: "email:'boss@corporate.com'",
+  limit: 300,
+});
+
+if (result.ok) {
+  console.log(result.data.length); // The actual records
+  console.log(result.hasMore); // Whether we have got to the end of the search result
+  console.log(result.totalCount); // Stripe's total_count
+
+  if (result.hasMore) {
+    console.log(result.nextPage); // Cursor for the next search page
+  }
+}
+```
+
+Notes:
+
+- `search()` always sends `expand[]=total_count`, so Stripe includes `total_count` on real search responses and the SDK exposes it as `totalCount`.
+- `totalCount` is still optional in the TypeScript result because `search()` also tolerates non-search endpoints and wraps a single returned entity into a success result.
+- If Stripe has more search results than your requested `limit`, the result is trimmed to that limit and returns `hasMore: true` with `nextPage`.
+- If the supplied path is not actually a Stripe search endpoint and Stripe returns a single entity, `search()` wraps that entity in a one-element array and returns `hasMore: false`.
 
 ## Stripe API version support
 
