@@ -93,7 +93,8 @@ And a list helper:
 `list` request additional `options`:
 
 - `limit`: maximum number of records to collect;
-- `afterId`: initial `starting_after` cursor (an object id string).
+- `afterId`: initial `starting_after` cursor (an object id string);
+- `onProgress`: callback function if you want to display list progress.
 
 (all fields are optional)
 
@@ -101,7 +102,8 @@ And a list helper:
 
 - `query`: Stripe search query string;
 - `limit`: maximum number of records to collect;
-- `page`: initial Stripe `page` cursor (an object id string).
+- `page`: initial Stripe `page` cursor (an object id string);
+- `onProgress`: callback function if you want to display list progress.
 
 ## Result Pattern
 
@@ -236,6 +238,7 @@ The helper returns `SimpleStripeListResult<T>`, which is either:
 - `limit`: maximum number of items to return. Default is scary: all of them.
 - `afterId`: initial cursor, sent as Stripe's `starting_after`. Default: undefined, meaning let's start with the first record.
 - `params`: any extra params to actually query Stripe.
+- `onProgress`: callback function to display progress (see example).
 
 ### `list()` example
 
@@ -254,6 +257,9 @@ const result = await client.list<Customer>("/v1/customers", {
   limit: 300,
   params: {
     email: "boss@corporate.com"
+  },
+  onProgress: (batchCount: number, collectedCount: number) => {
+    console.log(`Downloaded a batch of ${batchCount} new entries; currently have ${collectedCount}`);
   }
 });
 
@@ -289,6 +295,7 @@ The helper returns `SimpleStripeSearchResult<T>`, which is either:
 - `limit`: maximum number of items to return. Default is scary: all of them.
 - `page`: initial cursor, sent as Stripe's `page`. Default: undefined, meaning let's start with the first search page.
 - `params`: any extra params to actually query Stripe.
+- `onProgress`: callback function to display progress (see example).
 
 `search()` always adds Stripe's `expand[]=total_count` to the request, so `result.totalCount` is available on normal search responses without extra setup. If you already pass your own `expand`, `search()` appends `total_count` instead of replacing your values.
 
@@ -307,6 +314,10 @@ const client = new SimpleStripeClient(process.env.STRIPE_TEST_API_KEY!);
 const result = await client.search<Customer>("/v1/customers/search", {
   query: "email:'boss@corporate.com'",
   limit: 300,
+  onProgress: (batchCount: number, collectedCount: number, totalCount?: number) => {
+    console.log(`Downloaded a batch of ${batchCount} new entries`);
+    console.log(`Currently have ${collectedCount} out of ${totalCount || 'unknown'}`);
+  }
 });
 
 if (result.ok) {

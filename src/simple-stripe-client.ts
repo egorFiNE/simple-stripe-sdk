@@ -152,6 +152,10 @@ export class SimpleStripeClient {
 
       collected.push(...result.data.data);
 
+      if (options.onProgress) {
+        options.onProgress(result.data.data.length, collected.length);
+      }
+
       const hasReachedLimit = collected.length >= requestedLimit;
       const shouldContinue = !hasReachedLimit && !!result.data.has_more && result.data.data.length > 0;
 
@@ -254,6 +258,10 @@ export class SimpleStripeClient {
 
       collected.push(...result.data.data);
       totalCount = typeof result.data.total_count === "number" ? result.data.total_count : totalCount;
+
+      if (options.onProgress) {
+        options.onProgress(result.data.data.length, collected.length, totalCount);
+      }
 
       const hasReachedLimit = collected.length >= requestedLimit;
       const shouldContinue = !hasReachedLimit && !!result.data.has_more && typeof result.data.next_page === "string" && result.data.data.length > 0;

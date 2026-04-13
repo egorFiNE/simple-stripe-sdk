@@ -8,12 +8,14 @@ export type SimpleStripeRequestOptions = {
 export type SimpleStripeRequestListOptions = SimpleStripeRequestOptions & {
   limit?: number;
   afterId?: string;
+  onProgress?: (batchCount: number, collectedCount: number) => void;
 };
 
 export type SimpleStripeRequestSearchOptions = SimpleStripeRequestOptions & {
   query: string;
   limit?: number;
   page?: string;
+  onProgress?: (batchCount: number, collectedCount: number, totalCount?: number) => void;
 };
 
 // The response is a Result pattern:
