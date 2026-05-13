@@ -1,14 +1,14 @@
 # simple-stripe-sdk
 
-`simple-stripe-sdk` is a thin zero-deps TypeScript client for the [Stripe REST API](https://docs.stripe.com/api) for Node.js and Bun
+`simple-stripe-sdk` is a thin zero-deps TypeScript client for the [Stripe REST API](https://docs.stripe.com/api) for Node.js and Bun.
 
 ## Features
 
 * HTTP request helper for Stripe REST API;
 * Zero runtime deps;
-* Handles authentication, Stripe or network errors and retry logic;
-* Bring your own types for subset of fields you need;
-* Ready helpers for list pagination, search and webhooks verification.
+* Handles authentication, Stripe errors, network errors and retry logic;
+* Bring your own types for the subset of fields you need;
+* Ready helpers for list pagination, search and webhooks verification (WIP).
 
 ## Philosophy
 
@@ -33,12 +33,12 @@ This package does not try to generate or own Stripe's full schema universe. You 
 ### Limitations
 
 * V2 API not yet supported but it's planned;
-* Requests for non-json data is WIP;
-* Webhooks parsing and signature verification is WIP.
+* Requests for non-JSON data are WIP;
+* Webhook parsing and signature verification is WIP.
 
 ## Install And Runtime
 
-`simple-stripe-sdk` is ESM-only, targets Node `>=24`, Bun `>= 1.3` and typescript `>= 6.0`.
+`simple-stripe-sdk` is ESM-only, targets Node `>= 24`, Bun `>= 1.3` and TypeScript `>= 6.0`.
 
 ```bash
 npm install simple-stripe-sdk
@@ -77,7 +77,7 @@ if (response.ok) {
 - `patch<T>(path, options?)`
 - `delete<T>(path, options?)`
 
-And a list helper:
+And pagination helpers:
 
 - `list<T>(path, options?)`
 - `search<T>(path, options)`
@@ -86,11 +86,11 @@ And a list helper:
 
 - `params`: query string parameters;
 - `body`: request body;
-- `headers`: per-request headers in case you need to overwrite some.
+- `headers`: per-request headers in case you need to override some.
 
 (all fields are optional)
 
-`list` request additional `options`:
+`list()` accepts additional `options`:
 
 - `limit`: maximum number of records to collect;
 - `afterId`: initial `starting_after` cursor (an object id string);
@@ -98,12 +98,12 @@ And a list helper:
 
 (all fields are optional)
 
-`search` request additional `options`:
+`search()` accepts additional `options`:
 
 - `query`: Stripe search query string;
 - `limit`: maximum number of records to collect;
-- `page`: initial Stripe `page` cursor (an object id string);
-- `onProgress`: callback function if you want to display list progress.
+- `page`: initial Stripe `page` cursor (object id string);
+- `onProgress`: callback function if you want to display search progress.
 
 ## Result Pattern
 
@@ -113,7 +113,7 @@ That keeps the control flow explicit and lets your code handle different errors 
 
 ### Success
 
-In case of `ok` being `true` the object will have `data` property.
+When `ok` is `true`, the object has a `data` property.
 
 ```ts
 if (response.ok) {
@@ -127,7 +127,7 @@ if (response.ok) {
 
 ```ts
 if (!response.ok) {
-  console.log(`Got ${resonse.error.kind} querying stripe!`);
+  console.log(`Got ${response.error.kind} querying Stripe!`);
 }
 ```
 
@@ -137,9 +137,10 @@ Possible error kinds:
 - `fetch`: network or transport failure;
 - `stripe`: Stripe returned a structured API error payload;
 - `http`: Stripe returned a non-2xx response that was not recognized as a Stripe error payload;
-- `decode`: Stripe responded successfully, but the body could not be parsed as JSON.
+- `decode`: Stripe responded successfully, but the body could not be parsed as JSON;
+- `validation`: the SDK rejected the request before sending it to Stripe.
 
-`simple-stripe-sdk` also exports a simple helper, `errorToString()` that takes `response.error` as argument and returns a human-readalbe string with error explanation.
+`simple-stripe-sdk` also exports `errorToString()`, a small helper that takes `response.error` and returns a human-readable error explanation.
 
 ## Examples
 
@@ -160,14 +161,14 @@ type Customer = {
 
 const result = await client.get<Customer>('/v1/customers/cust_xxxxx');
 
-if (response.ok) {
-  console.log(`Customer email is ${response.data.email} and name ${response.data.name}`);
+if (result.ok) {
+  console.log(`Customer email is ${result.data.email} and name ${result.data.name}`);
 } else {
   console.log(`Failed to get customer`);
 }
 ```
 
-TODO: option to get raw non-json data from Stripe.
+TODO: option to get raw non-JSON data from Stripe.
 
 ### `post()`
 
@@ -195,15 +196,15 @@ const result = await client.post<Customer>("/v1/customers", {
 if (result.ok) {
   console.log(result.data.id);
 } else {
-  console.log(`Error creating customer: ${errorToString(response.error)}`);
+  console.log(`Error creating customer: ${errorToString(result.error)}`);
 }
 ```
 
-If you need to POST a different `body`, set `bodyEncoding` explicitly. The default `bodyEncoding` is `form`.
+If you need to POST a different kind of body, set `bodyEncoding` explicitly. The default `bodyEncoding` is `form`.
 
-TODO: option to get raw non-json data from Stripe.
+TODO: option to get raw non-JSON data from Stripe.
 
-#### To send json
+#### To send JSON
 
 ```ts
 await client.post("/v1/test", {
@@ -221,9 +222,9 @@ await client.post("/v1/test", {
 });
 ```
 
-Note: in case empty body is supplied with `raw` body encoding, the body is discarded and not sent.
+Note: if an empty body is supplied with `raw` body encoding, the body is discarded and not sent.
 
-## The `list()` Helper
+## The `list()` helper
 
 `list()` is a convenience helper around Stripe list endpoints. It keeps requesting pages until it collects the requested number of items or reaches the end of Stripe's list.
 
@@ -236,7 +237,7 @@ The helper returns `SimpleStripeListResult<T>`, which is either:
 ### `list()` options
 
 - `limit`: maximum number of items to return. Default is scary: all of them.
-- `afterId`: initial cursor, sent as Stripe's `starting_after`. Default: undefined, meaning let's start with the first record.
+- `afterId`: initial cursor, sent as Stripe's `starting_after`. Default: undefined, meaning start with the first record.
 - `params`: any extra params to actually query Stripe.
 - `onProgress`: callback function to display progress (see example).
 
@@ -279,7 +280,7 @@ Notes:
 - If the supplied path is not actually a Stripe list endpoint and Stripe returns a single entity, `list()` wraps that entity in a one-element array and returns `hasMore: false`.
 
 
-## The `search()` Helper
+## The `search()` helper
 
 `search()` is a convenience helper around Stripe search endpoints. It keeps requesting search pages until it collects the requested number of items or reaches the end of Stripe's search result set.
 
@@ -293,7 +294,7 @@ The helper returns `SimpleStripeSearchResult<T>`, which is either:
 
 - `query`: required Stripe search query string.
 - `limit`: maximum number of items to return. Default is scary: all of them.
-- `page`: initial cursor, sent as Stripe's `page`. Default: undefined, meaning let's start with the first search page.
+- `page`: initial cursor, sent as Stripe's `page`. Default: undefined, meaning start with the first search page.
 - `params`: any extra params to actually query Stripe.
 - `onProgress`: callback function to display progress (see example).
 
@@ -351,7 +352,7 @@ const client = new SimpleStripeClient(
 );
 ```
 
-When provided, it is sent as the `Stripe-Version` header on every request. Otherwise your default API version for this api key is used.
+When provided, it is sent as the `Stripe-Version` header on every request. Otherwise your default API version for this API key is used.
 
 ## Send custom headers
 
@@ -412,7 +413,7 @@ It does, however, vendor the `form-urlencoded` implementation directly in this r
 - upstream license: MIT
 - bundled files in this repo: `src/form-urlencoded.*`
 
-That code is bundled into this project instead of being downloaded from npm at install time in order to reduce supply chain attach surface.
+That code is bundled into this project instead of being downloaded from npm at install time in order to reduce supply chain attack surface.
 
 ## Stripe Docs
 
