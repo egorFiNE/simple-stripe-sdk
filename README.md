@@ -4,7 +4,7 @@
 
 ## Features
 
-* HTTP request helper for Stipe REST API;
+* HTTP request helper for Stripe REST API;
 * Zero runtime deps;
 * Handles authentication, Stripe or network errors and retry logic;
 * Bring your own types for subset of fields you need;
