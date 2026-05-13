@@ -50,7 +50,8 @@
     "lint": "npm run lint:oxlint && npm run lint:eslint",
     "smoke:dist": "node --input-type=module -e \"import('./dist/src/index.js').then(() => console.log('dist import ok'))\"",
     "check": "npm run lint && npm run test && npm run build && npm run smoke:dist",
-    "prepublishOnly": "npm run check"
+    "prepublishOnly": "npm run check",
+    "prepack": "npm run build"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.5",
