@@ -31,16 +31,16 @@
   "files": [
     "dist"
   ],
-  "main": "./dist/src/index.js",
-  "types": "./dist/src/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/src/index.d.ts",
-      "import": "./dist/src/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "npm run clean && tsc -p tsconfig.json && cp src/form-urlencoded.mjs dist/src/",
+    "build": "npm run clean && tsc -p tsconfig.json && cp src/form-urlencoded.mjs dist/",
     "clean": "rm -rf dist",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -48,7 +48,7 @@
     "lint:oxlint": "oxlint src tests",
     "lint:eslint": "eslint src",
     "lint": "npm run lint:oxlint && npm run lint:eslint",
-    "smoke:dist": "node --input-type=module -e \"import('./dist/src/index.js').then(() => console.log('dist import ok'))\"",
+    "smoke:dist": "node --input-type=module -e \"import('./dist/index.js').then(() => console.log('dist import ok'))\"",
     "check": "npm run lint && npm run test && npm run build && npm run smoke:dist",
     "prepublishOnly": "npm run check",
     "prepack": "npm run build"
