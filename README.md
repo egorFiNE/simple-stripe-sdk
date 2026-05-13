@@ -24,6 +24,8 @@
 
 This package does not try to generate or own Stripe's full schema universe. You define the request and response types you care about and nothing more. Stripe's own REST API [documentation](https://docs.stripe.com/api) is excellent and clearly lays out all the properties and types.
 
+It is written by a human.
+
 ### Comparison with official Stripe SDK
 
 1. The official Stripe SDK can feel like too much type gymnastics for what is, underneath, a straightforward HTTP API. This SDK takes the opposite approach: keep the client small, keep the behavior obvious, and let the caller bring only the types needed for each request.
